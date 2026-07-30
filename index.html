@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rota de Ronda - Guarda</title>
+    <!-- Importando o mapa gratuito Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
+        #map { height: 100vh; width: 100vw; }
+        .painel-guarda {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            z-index: 1000; background: white; padding: 12px 20px; border-radius: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); text-align: center; width: 85%; max-width: 400px;
+        }
+        button { background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-weight: bold; font-size: 14px; margin-top: 5px; }
+        button:hover { background: #218838; }
+        #status-texto { font-size: 13px; color: #333; margin: 0; font-weight: bold; }
+
+        /* Estilo visual para os balões numerados no mapa */
+        .marcador-numero {
+            background: #007bff;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            font-weight: bold;
+            font-size: 11px;
+            line-height: 24px;
+            border: 2px solid white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+        }
+        /* Estilo especial para a bandeira de início (Ponto 1) */
+        .marcador-inicio {
+            background: #28a745;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            font-size: 14px;
+            line-height: 28px;
+            border: 2px solid white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="painel-guarda">
+        <p id="status-texto">Buscando sua localização...</p>
+        <button onclick="centralizarMim()">Centralizar em Mim</button>
+    </div>
+
+    <div id="map"></div>
+
+    <!-- Scripts do Leaflet -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // 1. Inicializa o mapa centralizado em Carlópolis
+        const map = L.map('map').setView([-23.5786, -49.7322], 15);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        // 2. COLE AQUI OS SEUS ENDEREÇOS CONVERTIDOS COM O 'id' CORRETO
+        const enderecosRonda = [
+            { id: 1, nome: "01 R. Benedito Salles, 2023", lat: -23.4285, lng: -49.7198, coletada: false },
+            { id: 2, nome: "02 Rodovia José Alves Pereira", lat: -23.4310, lng: -49.7150, coletada: false },
+            { id: 3, nome: "03 Rod. José Alves Pereira, 1363", lat: -23.4335, lng: -49.7120, coletada: false },
+			{ id: 11, nome: "11 R. José Salles, 122 Carlópolis 86420-000", lat: -23.434035, lng: -49.722042, coletada: false },
+			{ id: 12, nome: "12 R. José da Silva, 52 Carlópolis, 86420-000", lat: -23.439741, lng: -49.727286, coletada: false },
+			{ id: 13, nome: "13 R. José Salles, 99 Carlópolis	86420-000", lat: -23.434035, lng: -49.722042, coletada: false },
+			{ id: 14, nome: "14 R. José Salles, 55 Carlópolis 86420-000", lat: -23.434035, lng: -49.722042, coletada: false },
+			{ id: 15, nome: "15 R. José Salles, 350c Carlópolis 86420-000", lat: -23.434035, lng: -49.722042, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 16 R. Gênova, 241 Carlópolis 86420-000
+			{ id: 17, nome: "17 R. Cap. Estácio, 200 Carlópolis 86420-000", lat: -23.429518, lng: -49.719246, coletada: false },
+			{ id: 25, nome: "25 R. José Salles, 471 Carlópolis 86420-000", lat: -23.434035, lng: -49.722042, coletada: false },
+  { id: 26, nome: "26 R. José Gonçalves Mendes, 663 Carlópolis 86420-000", lat: -23.432516, lng: -49.718180, coletada: false },
+  { id: 27, nome: "27 Rua Adorema Ana Rech, 712 Carlópolis 86420-000", lat: -23.431001, lng: -49.717640, coletada: false },
+  { id: 28, nome: "28 R. Veneza, 381 Carlópolis 86420-000", lat: -23.432298, lng: -49.719922, coletada: false },
+  { id: 29, nome: "29 R. Veneza, 367 Carlópolis 86420-000", lat: -23.432298, lng: -49.719922, coletada: false },
+  { id: 30, nome: "30 R. Veneza, 266 Carlópolis 86420-000", lat: -23.432298, lng: -49.719922, coletada: false },
+  { id: 31, nome: "31 R. Veneza, 242 Carlópolis 86420-000", lat: -23.432298, lng: -49.719922, coletada: false },
+  { id: 32, nome: "32 R. Veneza, 138 Carlópolis 86420-000", lat: -23.432298, lng: -49.719922, coletada: false },
+  { id: 33, nome: "33 R. José Talim, 222 Carlópolis 86420-000", lat: -23.431119, lng: -49.720491, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 34 R. José Sales, 260 Carlópolis 86420-000
+  { id: 35, nome: "35 R. José Talim, 160 Carlópolis 86420-000", lat: -23.431119, lng: -49.720491, coletada: false },
+  { id: 36, nome: "36 R. José Talim, 123 Carlópolis 86420-000", lat: -23.431119, lng: -49.720491, coletada: false },
+  { id: 37, nome: "37 R. Cap. Estácio, 75 Carlópolis 86420-000", lat: -23.429518, lng: -49.719246, coletada: false },
+  { id: 38, nome: "38 R. Cap. Estácio, 356 Carlópolis 86420-000", lat: -23.429518, lng: -49.719246, coletada: false },
+  { id: 39, nome: "39 R. André Jorge Cleli, 412 Carlópolis 86420-000", lat: -23.429807, lng: -49.720666, coletada: false },
+  { id: 40, nome: "40 R. Padre Hugo, 486 Carlópolis86420-000", lat: -23.428236, lng: -49.719354, coletada: false },
+  { id: 41, nome: "41 R. Padre Hugo, 388 Carlópolis 86420-000", lat: -23.428236, lng: -49.719354, coletada: false },
+  { id: 42, nome: "42 R. Padre Hugo, 422 Carlópolis 86420-000", lat: -23.428236, lng: -49.719354, coletada: false },
+  { id: 43, nome: "43 R. Ataliba Leonel, 514 Carlópolis 86420-000", lat: -23.434018, lng: -49.705827, coletada: false },
+  { id: 44, nome: "44 R. Dra. Paula e Silva, 442 Carlópolis 86420-000", lat: -23.426500, lng: -49.720329, coletada: false },
+  { id: 45, nome: "45 R. Dra. Paula e Silva, 445 Carlópolis 86420-000", lat: -23.426500, lng: -49.720329, coletada: false },
+  { id: 46, nome: "46 R. Padre Hugo, 978 Carlópolis 86420-000", lat: -23.428236, lng: -49.719354, coletada: false },
+  { id: 47, nome: "47 R. Padre Hugo, 1020 Carlópolis 86420-000", lat: -23.428236, lng: -49.719354, coletada: false },
+  { id: 48, nome: "48 R. Padre Hugo, 130 Carlópolis 86420-000", lat: -23.428236, lng: -49.719354, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 49 R. Nicolau Miguel, 371 Centro 86420-000
+  { id: 50, nome: "50 R. Cap. Estácio, 626 Carlópolis 86420-000", lat: -23.429518, lng: -49.719246, coletada: false },
+  { id: 51, nome: "51 R. Cap. Estácio, 550 Carlópolis 86420-000", lat: -23.429518, lng: -49.719246, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 52 R. Laurindo Franco de Godói, 305 Carlópolis, 86420-000
+  // NÃO ENCONTRADO NO MAPA: 53 R. Laurindo Franco de Godói 230 Carlópolis, 86420-000
+  { id: 54, nome: "54 R. Cap. Estácio, 533 Carlópolis 86420-000", lat: -23.429518, lng: -49.719246, coletada: false },
+  { id: 55, nome: "55 R. Kalil Keder, 374 Carlópolis 86420-000", lat: -23.426849, lng: -49.722942, coletada: false },
+  { id: 56, nome: "56 R. Kalil Keder, 384 Carlópolis86420-000", lat: -23.426849, lng: -49.722942, coletada: false },
+  { id: 57, nome: "57 R. Marcos Rodrigues do Amaral, 444 Carlópolis, 86420-000", lat: -23.431193, lng: -49.717848, coletada: false },
+  { id: 58, nome: "58 Rua Adorema Ana Rech, 429 Carlópolis 86420-000", lat: -23.431001, lng: -49.717640, coletada: false },
+  { id: 59, nome: "59 R. José Gonçalves Mendes, 178 Carlópolis86420-000", lat: -23.432516, lng: -49.718180, coletada: false },
+  { id: 60, nome: "60 R. José Gonçalves Mendes, 166 Carlópolis 86420-000", lat: -23.432516, lng: -49.718180, coletada: false },
+  { id: 61, nome: "61 R. Manoel Dias, 122 Carlópolis 86420-000", lat: -23.430686, lng: -49.716146, coletada: false },
+  { id: 62, nome: "62 R. José Gonçalves Mendes, 70 Carlópolis 86420-000", lat: -23.432516, lng: -49.718180, coletada: false },
+  { id: 63, nome: "63 Rua Adorema Ana Rech, 222 Carlópolis 86420-000", lat: -23.431001, lng: -49.717640, coletada: false },
+  { id: 64, nome: "64 Rua Adorema Ana Rech, 242 Carlópolis 86420-000", lat: -23.431001, lng: -49.717640, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 65 R. Laurindo Franco de Godói 80 Carlópolis, 86420-000
+  // NÃO ENCONTRADO NO MAPA: 66 R. João Currenca Borrego, 174 Carlópolis 86420-000
+  { id: 67, nome: "67 R. Ataliba Leonel, 262 Carlópolis 86420-000", lat: -23.434018, lng: -49.705827, coletada: false },
+  { id: 68, nome: "68 R. Laudelino Salles de Azevedo, 282 Carlópolis, 86420-000", lat: -23.429202, lng: -49.716823, coletada: false },
+  { id: 69, nome: "69 R. Quaresmeira Roxa, 10 Carlópolis 86420-000", lat: -23.430979, lng: -49.711145, coletada: false },
+  { id: 70, nome: "70 R. Quaresmeira Roxa, 10 Carlópolis 86420-000", lat: -23.430979, lng: -49.711145, coletada: false },
+  { id: 71, nome: "71 R. Pau Ferro, 389 Carlópolis 86420-000", lat: -23.429373, lng: -49.713592, coletada: false },
+  { id: 72, nome: "72 R. Pau Ferro, 349 Carlópolis 86420-000", lat: -23.429373, lng: -49.713592, coletada: false },
+  { id: 73, nome: "73 R. Pau Ferro, 340 Carlópolis 86420-000", lat: -23.429373, lng: -49.713592, coletada: false },
+  { id: 74, nome: "74 R. Pau Ferro, 308 Carlópolis 86420-000", lat: -23.429373, lng: -49.713592, coletada: false },
+  { id: 75, nome: "75 R. Alfeneiro, 332 Carlópolis 86420-000", lat: -23.429038, lng: -49.713091, coletada: false },
+  { id: 76, nome: "76 R. Sibipiruna, 288 Carlópolis 86420-000", lat: -23.429099, lng: -49.712571, coletada: false },
+  { id: 77, nome: "77 R. Ipê Roxo, 297 Carlópolis 86420-000", lat: -23.429781, lng: -49.712118, coletada: false },
+  { id: 78, nome: "78 R. Ipê Roxo, 281 Carlópolis 86420-000", lat: -23.429781, lng: -49.712118, coletada: false },
+  { id: 79, nome: "79 R. Ipê Roxo, 272 Carlópolis 86420-000", lat: -23.429781, lng: -49.712118, coletada: false },
+  { id: 80, nome: "80 R. Ipê Roxo, 148 Carlópolis 86420-000", lat: -23.429781, lng: -49.712118, coletada: false },
+  { id: 81, nome: "81 R. Ipê Roxo, 132 Carlópolis 86420-000", lat: -23.429781, lng: -49.712118, coletada: false },
+  { id: 82, nome: "82 R. Chuva de Ouro, 173 Carlópolis 86420-000", lat: -23.429889, lng: -49.711594, coletada: false },
+  { id: 83, nome: "83 R. Chuva de Ouro, 225 Carlópolis 86420-000", lat: -23.429889, lng: -49.711594, coletada: false },
+  { id: 84, nome: "84 R. Munguba, 258 Carlópolis 86420-000", lat: -23.430514, lng: -49.710429, coletada: false },
+  { id: 85, nome: "85 R. Munguba, 320 Carlópolis 86420-000", lat: -23.430514, lng: -49.710429, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 86 R. Quaresmeira Roxa, 295 vista alegre 86420-000
+  // NÃO ENCONTRADO NO MAPA: 87 R. Espatódia, 246 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 88 R. Espatódia, 186 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 89 R. Espatódia, 151 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 90 R. Espatódia, 138 Carlópolis 86420-000
+  { id: 91, nome: "91 R. Jacarandá Mimoso, 187 Carlópolis 86420-000", lat: -23.432017, lng: -49.709633, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 92 R. Extremosa, 350 Vista Alegre 86420-000
+  { id: 93, nome: "93 R. Extremosa, 479 Carlópolis 86420-000", lat: -23.429838, lng: -49.709514, coletada: false },
+  { id: 94, nome: "94 R. Magnólia, 519 Carlópolis 86420-000", lat: -23.429791, lng: -49.709923, coletada: false },
+  { id: 95, nome: "95 R. Bauinea, 616 Carlópolis 86420-000", lat: -23.428298, lng: -49.711380, coletada: false },
+  { id: 96, nome: "96 R. Salix Babilônica, 615 Carlópolis 86420-000", lat: -23.430478, lng: -49.709177, coletada: false },
+  { id: 97, nome: "97 R. Salix Babilônica, 41 Carlópolis 86420-000", lat: -23.430478, lng: -49.709177, coletada: false },
+  { id: 98, nome: "98 R. Romã, 136 Carlópolis 86420-000", lat: -23.430313, lng: -49.708643, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 99 R. lazara Maria Alves, 341 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 100 Silvio José Banik, 820 Carlópolis 86420-000
+  { id: 101, nome: "101 R. Tadashi Uto, 140 Carlópolis 86420-000", lat: -23.430835, lng: -49.706168, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 102 R. José Cândido de Souza, 91 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 103 R. José Cândido de Souza, 260 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 104 R. Benjamin Silva, 261 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 105 R. Evaristo Sanches Garcia,321 Carlópolis, 86420-000
+  // NÃO ENCONTRADO NO MAPA: 106 R. Evaristo Sanches Garcia, 291 Carlópolis, 86420-000
+  // NÃO ENCONTRADO NO MAPA: 107 R. Evaristo Sanches Garcia, 280 Carlópolis, 86420-000
+  // NÃO ENCONTRADO NO MAPA: 108 R. Maria Keder Soares, 250 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 109 R. Maria Keder Soares, 250 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 110 R. Maria Keder Soares, 300 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 111 R. Maria Keder Soares, 320 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 112 R. Dr. Alberto Merhi Mansur, 201 Carlópolis, 86420-000
+  // NÃO ENCONTRADO NO MAPA: 113 R. Dr. Alberto Merhi Mansur, 110 Carlópolis, 86420-000
+  // NÃO ENCONTRADO NO MAPA: 114 R. Dr. Alberto Merhi Mansur 50 Carlópolis, 86420-000
+  // NÃO ENCONTRADO NO MAPA: 115 R. Noemia Antonia Machado Varasquim, 40 Carlópolis, 86420-000
+  { id: 116, nome: "116 R. Ipe Amarelo, 10 Carlópolis 86420-000", lat: -23.426783, lng: -49.708344, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 117 R. Evaristo Sanches Garcia, 21 Carlópolis, 86420-000
+  // NÃO ENCONTRADO NO MAPA: 118 R. Benjamin Silva, 100 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 119 R. Benjamin Silva, 90 Carlópolis 86420-000
+  { id: 120, nome: "120 R. Ipê Roxo, 473 Carlópolis 86420-000", lat: -23.429781, lng: -49.712118, coletada: false },
+  { id: 121, nome: "121 R. Ipê Roxo, 473 Carlópolis 86420-000", lat: -23.429781, lng: -49.712118, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 122 R. Rosseto, 250 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 123 R. Rosseto, 281 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 124 R. Rosseto, 360 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 125 R. Rosseto, 391 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 126 R. Rosseto, 461 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 127 R. João Mariano da Silva Filho, 70 Carlópolis, 86420-000
+  // NÃO ENCONTRADO NO MAPA: 128 R. João Mariano da Silva Filho, 41 Carlópolis, PR
+  // NÃO ENCONTRADO NO MAPA: 129 R. Ana Camilo de Souza Camargo, 61 Carlópolis, PR
+  // NÃO ENCONTRADO NO MAPA: 130 R. Ana Camilo de Souza Camargo, 61 Carlópolis, PR
+  // NÃO ENCONTRADO NO MAPA: 131 R. Ana Camilo de Souza Camargo, 61 Carlópolis, PR
+  // NÃO ENCONTRADO NO MAPA: 132 R. Joel Ben-Hur de Oliveira, 50 Carlópolis, PR
+  // NÃO ENCONTRADO NO MAPA: 133 R. Joel Ben-Hur de Oliveira, 50 Carlópolis,PR
+  // NÃO ENCONTRADO NO MAPA: 134 R. Renato Pereira, 20 Carlópolis, 86420-000
+  { id: 135, nome: "135 Av. Murador, 20 Carlópolis 86420-000", lat: -23.425421, lng: -49.720729, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 136 R. Renato Pereira, 999 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 137 R. Renato Pereira, 999 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 138 R. Dr. Rogerio Ignacio da Silva, 170 Carlópolis, 86420-000
+  { id: 139, nome: "139 R. José Ribamar de Oliveira, 548 Carlópolis, 86420-000", lat: -23.422818, lng: -49.707516, coletada: false },
+  { id: 140, nome: "140 R. Leônidas da Silva, 545 Carlópolis, 86420-000", lat: -23.423392, lng: -49.707421, coletada: false },
+  { id: 141, nome: "141 R. Manuel Francisco dos Santos, 700 Carlópolis, 86420-000", lat: -23.421365, lng: -49.708423, coletada: false },
+  { id: 142, nome: "142 R. João Carlos da Silva, 608 Carlópolis, 86420-000", lat: -23.420882, lng: -49.708221, coletada: false },
+  { id: 143, nome: "143 R. João Carlos da Silva, 608 Carlópolis, 86420-000", lat: -23.420882, lng: -49.708221, coletada: false },
+  { id: 144, nome: "144 R. João Carlos da Silva, 598 Carlópolis, 86420-000", lat: -23.420882, lng: -49.708221, coletada: false },
+  { id: 145, nome: "145 R. Manuel Francisco dos Santos, 513 Carlópolis, 86420-000", lat: -23.421365, lng: -49.708423, coletada: false },
+  { id: 146, nome: "146 PR-218, 2814 Carlópolis, 86420-000", lat: -23.433345, lng: -49.725249, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 147 R. Benedito Salles, 2671 Carlópolis, 86420-000
+  // NÃO ENCONTRADO NO MAPA: 148 R. Benedito Salles, 2639 Carlópolis, 86420-000
+  { id: 149, nome: "149 PR-218, 2817 Carlópolis, 86420-000", lat: -23.433345, lng: -49.725249, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 150 R. Benedito Salles, 2671 Carlópolis, 86420-000
+  { id: 151, nome: "151 PR-218, 130 Carlópolis, 86420-000", lat: -23.433345, lng: -49.725249, coletada: false },
+  { id: 152, nome: "152 PR-218, 130 Carlópolis, 86420-000", lat: -23.433345, lng: -49.725249, coletada: false },
+  { id: 153, nome: "153 PR-218, 2539 Carlópolis, 86420-000", lat: -23.428127, lng: -49.679768, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 154 R. Benedito Salles, 2539 Carlópolis, 86420-000
+  // NÃO ENCONTRADO NO MAPA: 155 R. Benedito Salles, 1557 Carlópolis, 86420-000
+  // NÃO ENCONTRADO NO MAPA: 156 Rod. Jayme Canet, 1488 Carlópolis, 86420-000
+  // NÃO ENCONTRADO NO MAPA: 157 R. Benedito Salles, 1426 Carlópolis, 86420-000
+  // NÃO ENCONTRADO NO MAPA: 158 Rod. Jayme Canet, 1419 Carlópolis, 86420-000
+  { id: 159, nome: "159 R. Jorge Barros, 1575 Carlópolis,86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
+  { id: 160, nome: "160 R. Jorge Barros, 1575 Carlópolis, 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
+  { id: 161, nome: "161 R. Delﬁno Mendes, 10 Carlópolis 86420-000", lat: -23.422886, lng: -49.717187, coletada: false },
+  { id: 162, nome: "162 R. Delﬁno Mendes, 217 Carlópolis 86420-000", lat: -23.422886, lng: -49.717187, coletada: false },
+  { id: 163, nome: "163 R. Jorge Barros, 1175 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
+  { id: 164, nome: "164 R. Jorge Barros, 1625 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
+  { id: 165, nome: "165 R. Jorge Barros, 1704 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
+  { id: 166, nome: "166 Av. Elson Soares, 1537 Carlópolis 86420-000", lat: -23.425421, lng: -49.720729, coletada: false },
+  { id: 167, nome: "167 Av. Elson Soares, 1513 Carlópolis 86420-000", lat: -23.425421, lng: -49.720729, coletada: false },
+  { id: 168, nome: "168 R. Salvira Marquês, 445 Carlópolis 86420-000", lat: -23.420938, lng: -49.716681, coletada: false },
+  { id: 169, nome: "169 R. Salvira Marquês, 453 Carlópolis 86420-000", lat: -23.420938, lng: -49.716681, coletada: false },
+  { id: 170, nome: "170 R. Salvira Marquês, 551 Carlópolis 86420-000", lat: -23.420938, lng: -49.716681, coletada: false },
+  { id: 171, nome: "171 Av. Turística, 582 Carlópolis 86420-000", lat: -23.421193, lng: -49.719944, coletada: false },
+  { id: 172, nome: "172 R. Francisco Avelino Paiva 816 Carlópolis, 86420-000", lat: -23.423886, lng: -49.720589, coletada: false },
+  { id: 173, nome: "173 Av. Elson Soares, 1501 Carlópolis 86420-000", lat: -23.425421, lng: -49.720729, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 174 Av. Turística, 610 Centro 86420-000
+  { id: 175, nome: "175 Av. Turística, 645 Carlópolis  86420-000", lat: -23.421193, lng: -49.719944, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 176 R. Fidêncio de Melo, 573 Carlópolis 86420-000
+  { id: 177, nome: "177 R. Yoneo Yoshitani, 437 Carlópolis 86420-000", lat: -23.423423, lng: -49.722751, coletada: false },
+  { id: 178, nome: "178 R. Yoneo Yoshitani, 458 Carlópolis 86420-000", lat: -23.423423, lng: -49.722751, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 179 R. Edwirges Benedito do Amaral 1811 Carlópolis, 86420-000
+  { id: 180, nome: "180 R. Eugênio Neves Soares, 1767 Carlópolis 86420-000", lat: -23.421074, lng: -49.725479, coletada: false },
+  { id: 181, nome: "181 R. Yoneo Yoshitani, 314 Carlópolis 86420-000", lat: -23.423423, lng: -49.722751, coletada: false },
+  { id: 182, nome: "182 R. Yoneo Yoshitani, 278 Carlópolis 86420-000", lat: -23.423423, lng: -49.722751, coletada: false },
+  { id: 183, nome: "183 R. Antônio Jonas Ferreira Pinto 715 Carlópolis, 86420-000", lat: -23.423625, lng: -49.719297, coletada: false },
+  { id: 184, nome: "184 R. Antônio Jonas Ferreira Pinto 681 Carlópolis, 86420-000", lat: -23.423625, lng: -49.719297, coletada: false },
+  { id: 185, nome: "185 R. Francisco Avelino Paiva 575 Carlópolis, 86420-000", lat: -23.423886, lng: -49.720589, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 186 R. Fidêncio de Melo, 408 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 187 R. Fidêncio de Melo, 369 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 188 R. Fidêncio de Melo, 332 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 189 R. Fidêncio de Melo, 302 Carlópolis 86420-000
+  { id: 190, nome: "190 R. Jorge Barros, 1490 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
+  { id: 191, nome: "191 R. Jorge Barros, 1516 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 192 R. Fidêncio de Melo, 239 Carlópolis 86420-000
+  { id: 193, nome: "193 R. Jorge Barros, 1398 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
+  { id: 194, nome: "194 R. Antônio Jonas Ferreira Pinto 346 Carlópolis, 86420-000", lat: -23.423625, lng: -49.719297, coletada: false },
+  { id: 195, nome: "195 R. Antônio Jonas Ferreira Pinto 310 Carlópolis, 86420-000", lat: -23.423625, lng: -49.719297, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 196 R. Benedito Salles, 1098 centro 86420-000
+  // NÃO ENCONTRADO NO MAPA: 197 R. Benedito Salles, 1132 Centro 86420-000
+  { id: 198, nome: "198 PR-218, 1077 Carlópolis 86420-000", lat: -23.433345, lng: -49.725249, coletada: false },
+  { id: 199, nome: "199 R. Jorge Barros, 1344 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
+  { id: 200, nome: "200 R. Jorge Barros, 1333 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
+  { id: 201, nome: "201 R. Jorge Barros, 1345 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
+  { id: 202, nome: "202 R. Antônio Jonas Ferreira Pinto 372 Carlópolis, 86420-000", lat: -23.423625, lng: -49.719297, coletada: false },
+  { id: 203, nome: "203 R. Antônio Jonas Ferreira Pinto 398 Carlópolis, 86420-000", lat: -23.423625, lng: -49.719297, coletada: false },
+  { id: 204, nome: "204 R. Antônio Jonas Ferreira Pinto 434 Carlópolis, 86420-000", lat: -23.423625, lng: -49.719297, coletada: false },
+  { id: 205, nome: "205 R. Antônio Jonas Ferreira Pinto 431 Carlópolis, 86420-000", lat: -23.423625, lng: -49.719297, coletada: false },
+  { id: 206, nome: "206 Av. Elson Soares, 1210 Carlópolis 86420-000", lat: -23.425421, lng: -49.720729, coletada: false },
+  { id: 207, nome: "207 Av. Elson Soares, 1217 Carlópolis 86420-000", lat: -23.425421, lng: -49.720729, coletada: false },
+  { id: 208, nome: "208 Av. Elson Soares, 1122 Carlópolis 86420-000", lat: -23.425421, lng: -49.720729, coletada: false },
+  { id: 209, nome: "209 Av. Elson Soares, 1078 Carlópolis 86420-000", lat: -23.425421, lng: -49.720729, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 210 Av. Elson Soares, 1048 Centro 86420-000
+  // NÃO ENCONTRADO NO MAPA: 211 Av. Elson Soares, 1048 Centro 86420-000
+  { id: 212, nome: "212 Av. Elson Soares, 1022 Carlópolis 86420-000", lat: -23.425421, lng: -49.720729, coletada: false },
+  { id: 213, nome: "213 R. Francisco Avelino Paiva 322 Carlópolis, 86420-000", lat: -23.423886, lng: -49.720589, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 214 R. Francisco Avelino Paiva276 Carlópolis, 86420-000
+  { id: 215, nome: "215 R. Jorge Barros, 1149 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 216 R. Dra. Paula e Silva, 658 Centro 86420-000
+  { id: 217, nome: "217 R. Jorge Barros, 1029 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
+  { id: 218, nome: "218 R. Dra. Paula e Silva, 665 Carlópolis 86420-000", lat: -23.426500, lng: -49.720329, coletada: false },
+  { id: 219, nome: "219 R. Dra. Paula e Silva, 625 Carlópolis 86420-000", lat: -23.426500, lng: -49.720329, coletada: false },
+  { id: 220, nome: "220 R. Dra. Paula e Silva, 761 Carlópolis 86420-000", lat: -23.426500, lng: -49.720329, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 221 R. Laurindo Franco de Godói 578 Carlópolis, 86420-000
+  { id: 222, nome: "222 Av. Elson Soares, 767 Carlópolis 86420-000", lat: -23.425421, lng: -49.720729, coletada: false },
+  { id: 223, nome: "223 Av. Elson Soares, 767 Carlópolis 86420-000", lat: -23.425421, lng: -49.720729, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 224 Av. Elson Soares, 760 Avenida 86420-000
+  // NÃO ENCONTRADO NO MAPA: 225 R. Laurindo Franco de Godói 579 Carlópolis, 86420-000
+  // NÃO ENCONTRADO NO MAPA: 226 R. Laurindo Franco de Godói 567 Carlópolis, 86420-000
+  // NÃO ENCONTRADO NO MAPA: 227 R. Laurindo Franco de Godói 545 Carlópolis, 86420-000
+  { id: 228, nome: "228 R. Jorge Barros, 987 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 229 R. Laurindo Franco de Godói 464 Carlópolis, 86420-000
+  // NÃO ENCONTRADO NO MAPA: 230 R. Laurindo Franco de Godói 451 Carlópolis, 86420-000
+  // NÃO ENCONTRADO NO MAPA: 231 R. Laurindo Franco de Godói 451 Carlópolis, 86420-000
+  // NÃO ENCONTRADO NO MAPA: 232 R. Laurindo Franco de Godói 464 Carlópolis, 86420-000
+  // NÃO ENCONTRADO NO MAPA: 233 R. Laurindo Franco de Godói 787 Carlópolis, 86420-000
+  // NÃO ENCONTRADO NO MAPA: 234 R. Laurindo Franco de Godói 429 Carlópolis, 86420-000
+  // NÃO ENCONTRADO NO MAPA: 235 R. Laurindo Franco de Godói, 425 Centro 86420-000
+  // NÃO ENCONTRADO NO MAPA: 236 R. Laurindo Franco de Godói 415 Carlópolis, 86420-000
+  // NÃO ENCONTRADO NO MAPA: 237 R. Benedito Salles, 659 Centro 86420-000
+  { id: 238, nome: "238 R. Kalil Keder, 306 Carlópolis 86420-000", lat: -23.426849, lng: -49.722942, coletada: false },
+  { id: 239, nome: "239 R. Kalil Keder, 463 Carlópolis 86420-000", lat: -23.426849, lng: -49.722942, coletada: false },
+  { id: 240, nome: "240 R. Kalil Keder, 463 Carlópolis 86420-000", lat: -23.426849, lng: -49.722942, coletada: false },
+  { id: 241, nome: "241 R. Kalil Keder, 483 Carlópolis 86420-000", lat: -23.426849, lng: -49.722942, coletada: false },
+  { id: 242, nome: "242 PR-151, 528 Carlópolis 86420-000", lat: -23.410610, lng: -49.767001, coletada: false },
+  { id: 243, nome: "243 R. Marcos Rodrigues do Amaral 528 Carlópolis, 86420-000", lat: -23.431193, lng: -49.717848, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 244 R. Kalil Keder, 558 Centro 86420-000
+  { id: 245, nome: "245 R. Francisco Avelino Paiva 50 Carlópolis, 86420-000", lat: -23.423886, lng: -49.720589, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 246 Rua Laurindo Franco de Godói, 754 Centro, Carlópolis, 86420-054
+  { id: 247, nome: "247 R. Joaquim do Carmo de Oliveira Viléla 85 Carlópolis, 86420-000", lat: -23.425053, lng: -49.722944, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 248 R. Laurindo Franco de Godói 804 Carlópolis, 86420-000
+  { id: 249, nome: "249 R. Benedita da Cruz Domingues 51 Carlópolis, 86420-000", lat: -23.423309, lng: -49.725678, coletada: false },
+  { id: 250, nome: "250 R. Benedita da Cruz Domingues 59 Carlópolis, 86420-000", lat: -23.423309, lng: -49.725678, coletada: false },
+  { id: 251, nome: "251 R. Dra. Paula e Silva, 1156 Carlópolis 86420-000", lat: -23.426500, lng: -49.720329, coletada: false },
+  { id: 252, nome: "252 R. Dra. Paula e Silva, 1143 Carlópolis 86420-000", lat: -23.426500, lng: -49.720329, coletada: false },
+  { id: 253, nome: "253 R. Benedita da Cruz Domingues 209 Carlópolis, 86420-000", lat: -23.423309, lng: -49.725678, coletada: false },
+  { id: 254, nome: "254 R. Yasuta Ono, 2204 Carlópolis 86420-000", lat: -23.423196, lng: -49.726332, coletada: false },
+  { id: 255, nome: "255 R. Yasuta Ono, 2160 Carlópolis 86420-000", lat: -23.423196, lng: -49.726332, coletada: false },
+  { id: 256, nome: "256 Av. Jaboticabal, 2213 Carlópolis 86420-000", lat: -23.425318, lng: -49.726876, coletada: false },
+  { id: 257, nome: "257 R. Kalil Keder, 1145 Carlópolis 86420-000", lat: -23.426849, lng: -49.722942, coletada: false },
+  { id: 258, nome: "258 R. Prof. Alfredo Mansur, 321 Carlópolis 86420-000", lat: -23.426209, lng: -49.727330, coletada: false },
+  { id: 259, nome: "259 R. Prof. Alfredo Mansur, 388 Carlópolis 86420-000", lat: -23.426209, lng: -49.727330, coletada: false },
+  { id: 260, nome: "260 R. Kalil Keder, 900 Carlópolis 86420-000", lat: -23.426849, lng: -49.722942, coletada: false },
+  { id: 261, nome: "261 R. Marcos Rodrigues do Amaral 752 Carlópolis, 86420-000", lat: -23.431193, lng: -49.717848, coletada: false },
+  { id: 262, nome: "262 PR-151, 752 Carlópolis 86420-000", lat: -23.410610, lng: -49.767001, coletada: false },
+  { id: 263, nome: "263 R. João Feres, 16 Carlópolis 86420-000", lat: -23.426464, lng: -49.725256, coletada: false },
+  { id: 264, nome: "264 R. João Feres, 265 Carlópolis 86420-000", lat: -23.426464, lng: -49.725256, coletada: false },
+  { id: 265, nome: "265 R. João Feres, 273 Carlópolis 86420-000", lat: -23.426464, lng: -49.725256, coletada: false },
+  { id: 266, nome: "266 R. João Antônio Ribeiro, 170 Carlópolis 86420-000", lat: -23.428415, lng: -49.727248, coletada: false },
+  { id: 267, nome: "267 R. João Antônio Ribeiro, 170 Carlópolis 86420-000", lat: -23.428415, lng: -49.727248, coletada: false },
+  { id: 268, nome: "268 R. José Talim, 744 Carlópolis 86420-000", lat: -23.431119, lng: -49.720491, coletada: false },
+  { id: 269, nome: "269 R. José Talim, 768 Carlópolis 86420-000", lat: -23.431119, lng: -49.720491, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 270 Av. Elson Soares, 489 Centro 86420-000
+  { id: 271, nome: "271 R. Jorge Barros, 563 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
+  { id: 272, nome: "272 R. Jorge Barros, 625 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
+  { id: 273, nome: "273 R. Jorge Barros, 641 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
+  { id: 274, nome: "274 R. Jorge Barros, 680 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 275 R. Benedito Salles, 435 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 276 R. Benedito Salles, 1230 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 277 Rod. Jayme Canet, 341 Carlópolis 86420-000
+  { id: 278, nome: "278 R. Paraná, 349 Carlópolis 86420-000", lat: -23.429704, lng: -49.723258, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 279 Rod. José Alves Pereira, 250 Carlópolis 86420-000
+  { id: 280, nome: "280 R. José Aleixo Sobrinho, 336 Carlópolis 86420-000", lat: -23.430119, lng: -49.723632, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 281 R. José Sales, 262 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 282 Rod. José Alves Pereira, 233 Carlópolis 86420-000
+  { id: 283, nome: "283 R. Aroldo José Barbosa, 361 Carlópolis 86420-000", lat: -23.432586, lng: -49.721293, coletada: false },
+  { id: 284, nome: "284 R. Jorge Barros, 547 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 285 Rod. José Alves Pereira, 185 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 286 R. Benedito Salles, 1508 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 287 Rod. José Alves Pereira 8-220 Carlópolis, 86420-000
+  // NÃO ENCONTRADO NO MAPA: 288 Rod. José Alves Pereira 8-220 Carlópolis, 86420-000
+  // NÃO ENCONTRADO NO MAPA: 289 R. Gênova, 20 Carlópolis 86420-000
+  { id: 290, nome: "290 PR-218, 57 Carlópolis 86420-000", lat: -23.433345, lng: -49.725249, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 291 R. Benedito Salles, 10 Centro 86420-000
+  // NÃO ENCONTRADO NO MAPA: 292 R. Gênova, 20 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 293 R. Benedito Salles, 10 Centro 86420-000
+  // NÃO ENCONTRADO NO MAPA: 294 R. Benedito Salles, 27 Carlópolis 86420-000
+  { id: 295, nome: "295 R. Aroldo José Barbosa, 324 Carlópolis 86420-000", lat: -23.432586, lng: -49.721293, coletada: false },
+  { id: 296, nome: "296 R. José Talim, 350 Carlópolis 86420-000", lat: -23.431119, lng: -49.720491, coletada: false },
+  { id: 297, nome: "297 R. José Talim, 751 Carlópolis 86420-000", lat: -23.431119, lng: -49.720491, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 298 R. André Jorge Cleli, 201 Centro 86420-000
+  { id: 299, nome: "299 R. Jorge Barros, 903 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 300 R. Benedito Salles, 462 Centro 86420-000
+  // NÃO ENCONTRADO NO MAPA: 301 Rod. Jayme Canet, 467 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 302 R. Benedito Salles, 1124 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 303 R. Benedito Salles, 539 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 304 R. Benedito Salles, 560 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 305 R. Benedito Salles, 565 Carlópolis 86420-000
+  { id: 306, nome: "306 R. Dra. Paula e Silva, 958 Carlópolis 86420-000", lat: -23.426500, lng: -49.720329, coletada: false },
+  { id: 307, nome: "307 R. Ataliba Leonel, 445 Carlópolis 86420-000", lat: -23.434018, lng: -49.705827, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 308 R. Benedito Salles, 903 Carlópolis 86420-000
+  { id: 309, nome: "309 R. Nicolau Miguel, 400 Carlópolis 86420-000", lat: -23.425687, lng: -49.719818, coletada: false },
+  // NÃO ENCONTRADO NO MAPA: 310 R. Benedito Salles, 918 Centro 86420-000
+  // NÃO ENCONTRADO NO MAPA: 311 R. Benedito Salles, 1030 Carlópolis 86420-000
+  // NÃO ENCONTRADO NO MAPA: 312 R. Benedito Salles, 1340 Centro 86420-000
+  { id: 313, nome: "313 R. João Gervásio, 124 Carlópolis 86420-000", lat: -23.422778, lng: -49.712417, coletada: false },
+  { id: 314, nome: "314 R. João Gervásio, 254 Carlópolis 86420-000", lat: -23.422778, lng: -49.712417, coletada: false },
+  { id: 315, nome: "315 R. João Gervásio, 254 Carlópolis 86420-000", lat: -23.422778, lng: -49.712417, coletada: false },
+  { id: 316, nome: "316 R. Francisco Avelino Paiva, 655, Carlópolis 86420-000", lat: -23.423886, lng: -49.720589, coletada: false },
+        ];
+
+        // 3. Desenha os pontos no mapa e cria a linha da rota na ordem sequencial
+        let coordenadasRota = [];
+        
+        enderecosRonda.forEach((ponto, indice) => {
+            let iconePersonalizado;
+
+            // Se for o primeiro ponto (ou ID 1), criamos a bandeira de início verde
+            if (indice === 0 || ponto.id === 1) {
+                iconePersonalizado = L.divIcon({
+                    className: 'custom-div-icon',
+                    html: `<div class="marcador-inicio" title="Início da Ronda">🏁</div>`,
+                    iconSize: [28, 28],
+                    iconAnchor: [14, 14]
+                });
+            } else {
+                // Para os demais pontos, exibe um círculo azul contendo o ID exato do endereço
+                iconePersonalizado = L.divIcon({
+                    className: 'custom-div-icon',
+                    html: `<div class="marcador-numero">${ponto.id}</div>`,
+                    iconSize: [24, 24],
+                    iconAnchor: [12, 12]
+                });
+            }
+
+            // Adiciona o marcador customizado no mapa
+            L.marker([ponto.lat, ponto.lng], { icon: iconePersonalizado })
+                .addTo(map)
+                .bindPopup(`<b>Parada ${ponto.id}</b><br>${ponto.nome}`);
+
+            // Salva a coordenada para traçar a linha da rota
+            coordenadasRota.push([ponto.lat, ponto.lng]);
+        });
+
+        // Traça uma linha azul tracejada conectando os pontos da ronda na ordem da lista
+        if (coordenadasRota.length > 0) {
+            L.polyline(coordenadasRota, {
+                color: 'blue',
+                weight: 4,
+                opacity: 0.6,
+                dashArray: '10, 10'
+            }).addTo(map);
+        }
+
+        // 4. Gerencia a localização em tempo real do próprio celular do guarda
+        let meuMarcador = null;
+        let primeiraVez = true;
+
+        function aoMoverGPS(posicao) {
+            const lat = posicao.coords.latitude;
+            const lng = posicao.coords.longitude;
+
+            document.getElementById('status-texto').innerText = "GPS Ativo - Siga a linha azul da rota";
+
+            if (!meuMarcador) {
+                // Cria um marcador vermelho em destaque para o guarda saber onde ele está
+                meuMarcador = L.circleMarker([lat, lng], {
+                    radius: 9,
+                    color: '#fff',
+                    fillColor: '#dc3545', // Vermelho vivo
+                    fillOpacity: 1,
+                    weight: 2
+                }).addTo(map).bindPopup("<b>Você está aqui</b>");
+            } else {
+                meuMarcador.setLatLng([lat, lng]);
+            }
+
+            // Centraliza o mapa automaticamente na primeira leitura do GPS
+            if (primeiraVez) {
+                map.setView([lat, lng], 17);
+                primeiraVez = false;
+            }
+        }
+
+        function erroGPS(erro) {
+            document.getElementById('status-texto').innerText = "Erro no GPS: Ative a localização do celular.";
+        }
+
+        function centralizarMim() {
+            if (meuMarcador) {
+                map.setView(meuMarcador.getLatLng(), 18);
+            } else {
+                alert("Aguardando sinal do GPS...");
+            }
+        }
+
+        // Ativa o sensor de GPS do celular do guarda
+        if ("geolocation" in navigator) {
+            navigator.geolocation.watchPosition(aoMoverGPS, erroGPS, {
+                enableHighAccuracy: true,
+                maximumAge: 5000,
+                timeout: 15000
+            });
+        } else {
+            alert("Suporte de geolocalização indisponível neste dispositivo.");
+        }
+    </script>
+</body>
+</html>
