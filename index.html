@@ -8,456 +8,838 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body { margin: 0; padding: 0; font-family: Arial, sans-serif; }
-        #map { height: 100vh; width: 100vw; }
+        #map { height: 100vh; width: 100vw; cursor: crosshair; }
+
+        /* PAINEL SUPERIOR DE ADIÇÃO DE NOVO PONTO */
+        .painel-adicionar {
+            position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+            z-index: 1000; background: white; padding: 12px 16px; border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); width: 92%; max-width: 680px;
+            display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center;
+        }
+
+        .painel-adicionar input {
+            padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 12px;
+        }
+        .input-id { width: 55px; text-align: center; }
+        .input-nome { flex: 1; min-width: 140px; }
+        .input-busca { flex: 1; min-width: 130px; }
+        .input-coord { width: 105px; text-align: center; }
+
+        .btn-add {
+            background: #17a2b8; color: white; border: none; padding: 8px 12px;
+            border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px;
+            transition: background 0.2s;
+        }
+        .btn-add:hover { background: #138496; }
+
+        .btn-copiar {
+            background: #6f42c1; color: white; border: none; padding: 8px 12px;
+            border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 12px;
+        }
+        .btn-copiar:hover { background: #5a32a3; }
+
+        .dica-clique {
+            width: 100%; text-align: center; font-size: 11px; color: #666; margin-top: 2px;
+        }
+
+        /* PAINEL INFERIOR DE NAVEGAÇÃO DO GUARDA */
         .painel-guarda {
             position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-            z-index: 1000; background: white; padding: 12px 20px; border-radius: 30px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3); text-align: center; width: 85%; max-width: 400px;
+            z-index: 1000; background: white; padding: 15px 20px; border-radius: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); text-align: center; width: 85%; max-width: 420px;
         }
-        button { background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-weight: bold; font-size: 14px; margin-top: 5px; }
-        button:hover { background: #218838; }
-        #status-texto { font-size: 13px; color: #333; margin: 0; font-weight: bold; }
 
-        /* Estilo visual para os balões numerados no mapa */
+        .btn-acao { 
+            background: #28a745; color: white; border: none; padding: 10px 14px; 
+            border-radius: 20px; cursor: pointer; font-weight: bold; font-size: 13px; margin: 3px; 
+        }
+        .btn-acao:hover { background: #218838; }
+        .btn-secundario { background: #007bff; }
+        .btn-secundario:hover { background: #0056b3; }
+        .btn-waze { background: #33CCFF; color: #000; }
+        .btn-gmaps { background: #4285F4; }
+        .btn-perigo { background: #dc3545; }
+        .btn-perigo:hover { background: #bd2130; }
+        
+        #status-texto { font-size: 14px; color: #111; margin: 0 0 4px 0; font-weight: bold; }
+        #distancia-texto { font-size: 12px; color: #555; margin: 0 0 10px 0; }
+
+        /* ESTILOS DOS MARCADORES DE PONTOS NO MAPA */
         .marcador-numero {
-            background: #007bff;
-            color: white;
-            border-radius: 50%;
-            text-align: center;
-            font-weight: bold;
-            font-size: 11px;
-            line-height: 24px;
-            border: 2px solid white;
+            background: #007bff; color: white; border-radius: 50%; text-align: center;
+            font-weight: bold; font-size: 11px; line-height: 24px; border: 2px solid white;
             box-shadow: 0 2px 5px rgba(0,0,0,0.4);
         }
-        /* Estilo especial para a bandeira de início (Ponto 1) */
         .marcador-inicio {
-            background: #28a745;
-            color: white;
-            border-radius: 50%;
-            text-align: center;
-            font-size: 14px;
-            line-height: 28px;
-            border: 2px solid white;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+            background: #28a745; color: white; border-radius: 50%; text-align: center;
+            font-size: 14px; line-height: 28px; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+        }
+        .marcador-alvo {
+            background: #ff9800; color: white; border-radius: 50%; text-align: center;
+            font-weight: bold; font-size: 13px; line-height: 26px; border: 3px solid #fff;
+            box-shadow: 0 0 12px rgba(255,152,0,0.9); animation: pulsar 1.5s infinite;
+        }
+        .marcador-concluido {
+            background: #6c757d; color: white; border-radius: 50%; text-align: center;
+            font-size: 11px; line-height: 24px; border: 2px solid white; opacity: 0.55;
+        }
+
+        @keyframes pulsar {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.25); }
+            100% { transform: scale(1); }
+        }
+
+        .btn-gps-popup {
+            display: inline-block; padding: 5px 8px; border-radius: 4px; color: white;
+            text-decoration: none; font-size: 11px; font-weight: bold; margin-right: 4px; margin-top: 6px;
+        }
+
+        /* MODAL DE CÓDIGO JS */
+        #modal-codigo {
+            display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.7); z-index: 2000; justify-content: center; align-items: center;
+        }
+        .modal-conteudo {
+            background: white; padding: 20px; border-radius: 12px; width: 90%; max-width: 600px;
+            max-height: 80vh; display: flex; flex-direction: column;
+        }
+        .modal-conteudo textarea {
+            width: 100%; height: 250px; font-family: monospace; font-size: 11px; margin-top: 10px;
         }
     </style>
 </head>
 <body>
 
+    <!-- Painel Superior: Busca, Coordenadas e Clique -->
+    <div class="painel-adicionar">
+        <input type="number" id="novo-id" class="input-id" placeholder="Nº ID" min="1">
+        <input type="text" id="novo-nome" class="input-nome" placeholder="Nome / Descrição da Rua">
+        <input type="text" id="novo-busca" class="input-busca" placeholder="Buscar Endereço...">
+        <input type="text" id="novo-lat" class="input-coord" placeholder="Latitude">
+        <input type="text" id="novo-lng" class="input-coord" placeholder="Longitude">
+        
+        <button class="btn-add" onclick="processarEAdicionarPonto()">➕ Adicionar</button>
+        <button class="btn-copiar" onclick="abrirModalCodigo()">📋 Copiar Código JS</button>
+        
+        <div class="dica-clique">💡 <b>Dica:</b> Você pode clicar direto no mapa para capturar a Latitude e Longitude!</div>
+    </div>
+
+    <!-- Painel do Guarda -->
     <div class="painel-guarda">
-        <p id="status-texto">Buscando sua localização...</p>
-        <button onclick="centralizarMim()">Centralizar em Mim</button>
+        <p id="status-texto">Ajustando coordenadas na estrada...</p>
+        <p id="distancia-texto"></p>
+        <div id="botoes-painel">
+            <button class="btn-acao" onclick="centralizarMim()">Centralizar em Mim</button>
+        </div>
+    </div>
+
+    <!-- Modal para Copiar Código JS -->
+    <div id="modal-codigo">
+        <div class="modal-conteudo">
+            <h3>Código JS Atualizado dos Pontos</h3>
+            <p style="font-size: 12px; color: #555;">Copie o texto abaixo e substitua no seu código na variável <code>enderecosRonda</code>:</p>
+            <textarea id="textarea-codigo" readonly></textarea>
+            <div style="margin-top: 10px; text-align: right;">
+                <button class="btn-add" onclick="copiarTextoCodigo()">Copiar para Transferência</button>
+                <button class="btn-acao btn-perigo" onclick="fecharModalCodigo()">Fechar</button>
+            </div>
+        </div>
     </div>
 
     <div id="map"></div>
 
-    <!-- Scripts do Leaflet -->
+    <!-- Scripts Leaflet -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
-        // 1. Inicializa o mapa centralizado em Carlópolis
-        const map = L.map('map').setView([-23.5786, -49.7322], 15);
+        // 1. Inicializa o mapa em Carlópolis
+        const map = L.map('map').setView([-23.4310, -49.7170], 15);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '© OpenStreetMap'
         }).addTo(map);
 
-        // 2. COLE AQUI OS SEUS ENDEREÇOS CONVERTIDOS COM O 'id' CORRETO
-        const enderecosRonda = [
-           { id: 1, nome: "01 R. Benedito Salles, 2023", lat: -23.4285, lng: -49.7198, coletada: false },
-            { id: 2, nome: "02 Rodovia José Alves Pereira", lat: -23.4310, lng: -49.7150, coletada: false },
-            { id: 3, nome: "03 Rod. José Alves Pereira, 1363", lat: -23.4335, lng: -49.7120, coletada: false },
-			{ id: 4, nome: "04 R. Luis Consulmagno de Proenca, 339 Carlópolis, 86420-000", lat: -23.576510, lng: -49.731200, coletada: false },
-			{ id: 5, nome: "05 R. Luis Consulmagno de Proenca, 339 Carlópolis, 86420-000", lat: -23.576510, lng: -49.731200, coletada: false },
-			{ id: 6, nome: "06 R. Luis Consulmagno de Proenca, 351 Carlópolis, 86420-000", lat: -23.576580, lng: -49.731250, coletada: false },
-			{ id: 7, nome: "07 R. Luis Consulmagno de Proenca, 235 Carlópolis, 86420-000", lat: -23.576400, lng: -49.731100, coletada: false },
-			{ id: 8, nome: "08 R. João de Maria Ó Monge, 1702 Carlópolis, 86420-000", lat: -23.581200, lng: -49.728500, coletada: false },
-			{ id: 9, nome: "09 R. João de Maria Ó Monge, 1712 Carlópolis, 86420-000", lat: -23.581250, lng: -49.728550, coletada: false },
-			{ id: 10, nome: "10 R. Antônio de Oliveira, 1197 Carlópolis, 86420-000", lat: -23.579000, lng: -49.734000, coletada: false },
-			{ id: 11, nome: "11 R. José Salles, 122 Carlópolis 86420-000", lat: -23.577820, lng: -49.731510, coletada: false },
-			{ id: 12, nome: "12 R. José da Silva, 52 Carlópolis, 86420-000", lat: -23.580500, lng: -49.733000, coletada: false },
-			{ id: 13, nome: "13 R. José Salles, 99 Carlópolis 86420-000", lat: -23.577780, lng: -49.731480, coletada: false },
-			{ id: 14, nome: "14 R. José Salles, 55 Carlópolis 86420-000", lat: -23.577710, lng: -49.731420, coletada: false },
-			{ id: 11, nome: "11 R. José Salles,122,Carlópolis,86420-000", lat: -23.434035, lng: -49.722042, coletada: false },
-			{ id: 12, nome: "12 R. José da Silva,52,Carlópolis,86420-000", lat: -23.439741, lng: -49.727286, coletada: false },
-			{ id: 13, nome: "13 R. José Salles,99,Carlópolis,86420-000", lat: -23.434035, lng: -49.722042, coletada: false },
-			{ id: 14, nome: "14 R. José Salles,55,Carlópolis,86420-000", lat: -23.434035, lng: -49.722042, coletada: false },
-			{ id: 11, nome: "11 R. José Salles, 122 Carlópolis 86420-000", lat: -23.434035, lng: -49.722042, coletada: false },
-			{ id: 12, nome: "12 R. José da Silva, 52 Carlópolis, 86420-000", lat: -23.439741, lng: -49.727286, coletada: false },
-			{ id: 13, nome: "13 R. José Salles, 99 Carlópolis	86420-000", lat: -23.434035, lng: -49.722042, coletada: false },
-			{ id: 14, nome: "14 R. José Salles, 55 Carlópolis 86420-000", lat: -23.434035, lng: -49.722042, coletada: false },
-			{ id: 15, nome: "15 R. José Salles, 350c Carlópolis 86420-000", lat: -23.434035, lng: -49.722042, coletada: false },
-			{ id: 16, nome: "16 R. Gênova, 241 Carlópolis 86420-000", lat: -23.579410, lng: -49.731950, coletada: false },
-			{ id: 17, nome: "17 R. Cap. Estácio, 200 Carlópolis 86420-000", lat: -23.429518, lng: -49.719246, coletada: false },
-			{ id: 25, nome: "25 R. José Salles, 471 Carlópolis 86420-000", lat: -23.434035, lng: -49.722042, coletada: false },
-			{ id: 26, nome: "26 R. José Gonçalves Mendes, 663 Carlópolis 86420-000", lat: -23.432516, lng: -49.718180, coletada: false },
-			{ id: 27, nome: "27 Rua Adorema Ana Rech, 712 Carlópolis 86420-000", lat: -23.431001, lng: -49.717640, coletada: false },
-			{ id: 28, nome: "28 R. Veneza, 381 Carlópolis 86420-000", lat: -23.432298, lng: -49.719922, coletada: false },
-			{ id: 29, nome: "29 R. Veneza, 367 Carlópolis 86420-000", lat: -23.432298, lng: -49.719922, coletada: false },
-		  { id: 30, nome: "30 R. Veneza, 266 Carlópolis 86420-000", lat: -23.432298, lng: -49.719922, coletada: false },
-		  { id: 31, nome: "31 R. Veneza, 242 Carlópolis 86420-000", lat: -23.432298, lng: -49.719922, coletada: false },
-			{ id: 32, nome: "32 R. Veneza, 138 Carlópolis 86420-000", lat: -23.432298, lng: -49.719922, coletada: false },
-			{ id: 33, nome: "33 R. José Talim, 222 Carlópolis 86420-000", lat: -23.431119, lng: -49.720491, coletada: false },
-			{ id: 34, nome: "34 R. José Sales, 260 Carlópolis 86420-000", lat: -23.577500, lng: -49.731300, coletada: false },
-		  { id: 35, nome: "35 R. José Talim, 160 Carlópolis 86420-000", lat: -23.431119, lng: -49.720491, coletada: false },
-		  { id: 36, nome: "36 R. José Talim, 123 Carlópolis 86420-000", lat: -23.431119, lng: -49.720491, coletada: false },
-		  { id: 37, nome: "37 R. Cap. Estácio, 75 Carlópolis 86420-000", lat: -23.429518, lng: -49.719246, coletada: false },
-		  { id: 38, nome: "38 R. Cap. Estácio, 356 Carlópolis 86420-000", lat: -23.429518, lng: -49.719246, coletada: false },
-		  { id: 39, nome: "39 R. André Jorge Cleli, 412 Carlópolis 86420-000", lat: -23.429807, lng: -49.720666, coletada: false },
-		  { id: 40, nome: "40 R. Padre Hugo, 486 Carlópolis86420-000", lat: -23.428236, lng: -49.719354, coletada: false },
-		  { id: 41, nome: "41 R. Padre Hugo, 388 Carlópolis 86420-000", lat: -23.428236, lng: -49.719354, coletada: false },
-		  { id: 42, nome: "42 R. Padre Hugo, 422 Carlópolis 86420-000", lat: -23.428236, lng: -49.719354, coletada: false },
-		  { id: 43, nome: "43 R. Ataliba Leonel, 514 Carlópolis 86420-000", lat: -23.434018, lng: -49.705827, coletada: false },
-		  { id: 44, nome: "44 R. Dra. Paula e Silva, 442 Carlópolis 86420-000", lat: -23.426500, lng: -49.720329, coletada: false },
-		  { id: 45, nome: "45 R. Dra. Paula e Silva, 445 Carlópolis 86420-000", lat: -23.426500, lng: -49.720329, coletada: false },
-		  { id: 46, nome: "46 R. Padre Hugo, 978 Carlópolis 86420-000", lat: -23.428236, lng: -49.719354, coletada: false },
-		  { id: 47, nome: "47 R. Padre Hugo, 1020 Carlópolis 86420-000", lat: -23.428236, lng: -49.719354, coletada: false },
-		  { id: 48, nome: "48 R. Padre Hugo, 130 Carlópolis 86420-000", lat: -23.428236, lng: -49.719354, coletada: false },
-		  { id: 49, nome: "49 R. Nicolau Miguel, 371 Centro 86420-000", lat: -23.579120, lng: -49.730540, coletada: false },
-		  { id: 50, nome: "50 R. Cap. Estácio, 626 Carlópolis 86420-000", lat: -23.429518, lng: -49.719246, coletada: false },
-		  { id: 51, nome: "51 R. Cap. Estácio, 550 Carlópolis 86420-000", lat: -23.429518, lng: -49.719246, coletada: false },
-		  { id: 52, nome: "52 R. Laurindo Franco de Godói, 305 Carlópolis, 86420-000", lat: -23.582150, lng: -49.731100, coletada: false },
-			{ id: 53, nome: "53 R. Laurindo Franco de Godói 230 Carlópolis, 86420-000", lat: -23.582000, lng: -49.731000, coletada: false },
-		  { id: 54, nome: "54 R. Cap. Estácio, 533 Carlópolis 86420-000", lat: -23.429518, lng: -49.719246, coletada: false },
-		  { id: 55, nome: "55 R. Kalil Keder, 374 Carlópolis 86420-000", lat: -23.426849, lng: -49.722942, coletada: false },
-		  { id: 56, nome: "56 R. Kalil Keder, 384 Carlópolis86420-000", lat: -23.426849, lng: -49.722942, coletada: false },
-		  { id: 57, nome: "57 R. Marcos Rodrigues do Amaral, 444 Carlópolis, 86420-000", lat: -23.431193, lng: -49.717848, coletada: false },
-		  { id: 58, nome: "58 Rua Adorema Ana Rech, 429 Carlópolis 86420-000", lat: -23.431001, lng: -49.717640, coletada: false },
-		  { id: 59, nome: "59 R. José Gonçalves Mendes, 178 Carlópolis86420-000", lat: -23.432516, lng: -49.718180, coletada: false },
-		  { id: 60, nome: "60 R. José Gonçalves Mendes, 166 Carlópolis 86420-000", lat: -23.432516, lng: -49.718180, coletada: false },
-		  { id: 61, nome: "61 R. Manoel Dias, 122 Carlópolis 86420-000", lat: -23.430686, lng: -49.716146, coletada: false },
-		  { id: 62, nome: "62 R. José Gonçalves Mendes, 70 Carlópolis 86420-000", lat: -23.432516, lng: -49.718180, coletada: false },
-		  { id: 63, nome: "63 Rua Adorema Ana Rech, 222 Carlópolis 86420-000", lat: -23.431001, lng: -49.717640, coletada: false },
-		  { id: 64, nome: "64 Rua Adorema Ana Rech, 242 Carlópolis 86420-000", lat: -23.431001, lng: -49.717640, coletada: false },
-		  { id: 65, nome: "65 R. Laurindo Franco de Godói 80 Carlópolis, 86420-000", lat: -23.581700, lng: -49.730800, coletada: false },
-			{ id: 66, nome: "66 R. João Currenca Borrego, 174 Carlópolis 86420-000", lat: -23.583100, lng: -49.730100, coletada: false },
-		  { id: 67, nome: "67 R. Ataliba Leonel, 262 Carlópolis 86420-000", lat: -23.434018, lng: -49.705827, coletada: false },
-		  { id: 68, nome: "68 R. Laudelino Salles de Azevedo, 282 Carlópolis, 86420-000", lat: -23.429202, lng: -49.716823, coletada: false },
-		  { id: 69, nome: "69 R. Quaresmeira Roxa, 10 Carlópolis 86420-000", lat: -23.430979, lng: -49.711145, coletada: false },
-		  { id: 70, nome: "70 R. Quaresmeira Roxa, 10 Carlópolis 86420-000", lat: -23.430979, lng: -49.711145, coletada: false },
-		  { id: 71, nome: "71 R. Pau Ferro, 389 Carlópolis 86420-000", lat: -23.429373, lng: -49.713592, coletada: false },
-		  { id: 72, nome: "72 R. Pau Ferro, 349 Carlópolis 86420-000", lat: -23.429373, lng: -49.713592, coletada: false },
-		  { id: 73, nome: "73 R. Pau Ferro, 340 Carlópolis 86420-000", lat: -23.429373, lng: -49.713592, coletada: false },
-		  { id: 74, nome: "74 R. Pau Ferro, 308 Carlópolis 86420-000", lat: -23.429373, lng: -49.713592, coletada: false },
-		  { id: 75, nome: "75 R. Alfeneiro, 332 Carlópolis 86420-000", lat: -23.429038, lng: -49.713091, coletada: false },
-		  { id: 76, nome: "76 R. Sibipiruna, 288 Carlópolis 86420-000", lat: -23.429099, lng: -49.712571, coletada: false },
-		  { id: 77, nome: "77 R. Ipê Roxo, 297 Carlópolis 86420-000", lat: -23.429781, lng: -49.712118, coletada: false },
-		  { id: 78, nome: "78 R. Ipê Roxo, 281 Carlópolis 86420-000", lat: -23.429781, lng: -49.712118, coletada: false },
-		  { id: 79, nome: "79 R. Ipê Roxo, 272 Carlópolis 86420-000", lat: -23.429781, lng: -49.712118, coletada: false },
-		  { id: 80, nome: "80 R. Ipê Roxo, 148 Carlópolis 86420-000", lat: -23.429781, lng: -49.712118, coletada: false },
-		  { id: 81, nome: "81 R. Ipê Roxo, 132 Carlópolis 86420-000", lat: -23.429781, lng: -49.712118, coletada: false },
-		  { id: 82, nome: "82 R. Chuva de Ouro, 173 Carlópolis 86420-000", lat: -23.429889, lng: -49.711594, coletada: false },
-		  { id: 83, nome: "83 R. Chuva de Ouro, 225 Carlópolis 86420-000", lat: -23.429889, lng: -49.711594, coletada: false },
-		  { id: 84, nome: "84 R. Munguba, 258 Carlópolis 86420-000", lat: -23.430514, lng: -49.710429, coletada: false },
-		  { id: 85, nome: "85 R. Munguba, 320 Carlópolis 86420-000", lat: -23.430514, lng: -49.710429, coletada: false },
-		  { id: 86, nome: "86 R. Quaresmeira Roxa, 295 vista alegre 86420-000", lat: -23.573200, lng: -49.726100, coletada: false },
-		  { id: 87, nome: "87 R. Espatódia, 246 Carlópolis 86420-000", lat: -23.572800, lng: -49.725800, coletada: false },
-		  { id: 88, nome: "88 R. Espatódia, 186 Carlópolis 86420-000", lat: -23.572700, lng: -49.725700, coletada: false },
-		  { id: 89, nome: "89 R. Espatódia, 151 Carlópolis 86420-000", lat: -23.572600, lng: -49.725600, coletada: false },
-		  { id: 90, nome: "90 R. Espatódia, 138 Carlópolis 86420-000", lat: -23.572550, lng: -49.725550, coletada: false },
-		  { id: 91, nome: "91 R. Jacarandá Mimoso, 187 Carlópolis 86420-000", lat: -23.432017, lng: -49.709633, coletada: false },
-		  { id: 92, nome: "92 R. Extremosa, 350 Vista Alegre 86420-000", lat: -23.573500, lng: -49.726500, coletada: false },
-		  { id: 93, nome: "93 R. Extremosa, 479 Carlópolis 86420-000", lat: -23.429838, lng: -49.709514, coletada: false },
-		  { id: 94, nome: "94 R. Magnólia, 519 Carlópolis 86420-000", lat: -23.429791, lng: -49.709923, coletada: false },
-		  { id: 95, nome: "95 R. Bauinea, 616 Carlópolis 86420-000", lat: -23.428298, lng: -49.711380, coletada: false },
-		  { id: 96, nome: "96 R. Salix Babilônica, 615 Carlópolis 86420-000", lat: -23.430478, lng: -49.709177, coletada: false },
-		  { id: 97, nome: "97 R. Salix Babilônica, 41 Carlópolis 86420-000", lat: -23.430478, lng: -49.709177, coletada: false },
-		  { id: 98, nome: "98 R. Romã, 136 Carlópolis 86420-000", lat: -23.430313, lng: -49.708643, coletada: false },
-		  { id: 99, nome: "99 R. lazara Maria Alves, 341 Carlópolis 86420-000", lat: -23.580100, lng: -49.728100, coletada: false },
-		  { id: 100, nome: "100 Silvio José Banik, 820 Carlópolis 86420-000", lat: -23.576200, lng: -49.725100, coletada: false },
-		  { id: 101, nome: "101 R. Tadashi Uto, 140 Carlópolis 86420-000", lat: -23.430835, lng: -49.706168, coletada: false },
-		  { id: 102, nome: "102 R. José Cândido de Souza, 91 Carlópolis 86420-000", lat: -23.581300, lng: -49.732300, coletada: false },
-		  { id: 103, nome: "103 R. José Cândido de Souza, 260 Carlópolis 86420-000", lat: -23.581600, lng: -49.732600, coletada: false },
-		  { id: 104, nome: "104 R. Benjamin Silva, 261 Carlópolis 86420-000", lat: -23.579500, lng: -49.733500, coletada: false },
-		  { id: 105, nome: "105 R. Evaristo Sanches Garcia, 321 Carlópolis, 86420-000", lat: -23.584200, lng: -49.729200, coletada: false },
-		  { id: 106, nome: "106 R. Evaristo Sanches Garcia, 291 Carlópolis, 86420-000", lat: -23.584100, lng: -49.729100, coletada: false },
-		  { id: 107, nome: "107 R. Evaristo Sanches Garcia, 280 Carlópolis, 86420-000", lat: -23.584050, lng: -49.729050, coletada: false },
-		  { id: 108, nome: "108 R. Maria Keder Soares, 250 Carlópolis 86420-000", lat: -23.585100, lng: -49.731100, coletada: false },
-		  { id: 109, nome: "109 R. Maria Keder Soares, 250 Carlópolis 86420-000", lat: -23.585100, lng: -49.731100, coletada: false },
-		  { id: 110, nome: "110 R. Maria Keder Soares, 300 Carlópolis 86420-000", lat: -23.585250, lng: -49.731250, coletada: false },
-		  { id: 111, nome: "111 R. Maria Keder Soares, 320 Carlópolis 86420-000", lat: -23.585300, lng: -49.731300, coletada: false },
-		  { id: 112, nome: "112 R. Dr. Alberto Merhi Mansur, 201 Carlópolis, 86420-000", lat: -23.576300, lng: -49.734300, coletada: false },
-		  { id: 113, nome: "113 R. Dr. Alberto Merhi Mansur, 110 Carlópolis, 86420-000", lat: -23.576100, lng: -49.734100, coletada: false },
-		  { id: 114, nome: "114 R. Dr. Alberto Merhi Mansur 50 Carlópolis, 86420-000", lat: -23.575950, lng: -49.733950, coletada: false },
-		  { id: 115, nome: "115 R. Noemia Antonia Machado Varasquim, 40 Carlópolis, 86420-000", lat: -23.586100, lng: -49.733100, coletada: false },
-		  { id: 116, nome: "116 R. Ipe Amarelo, 10 Carlópolis 86420-000", lat: -23.426783, lng: -49.708344, coletada: false },
-		  { id: 117, nome: "117 R. Evaristo Sanches Garcia, 21 Carlópolis, 86420-000", lat: -23.583600, lng: -49.728600, coletada: false },
-		  { id: 118, nome: "118 R. Benjamin Silva, 100 Carlópolis 86420-000", lat: -23.579200, lng: -49.733200, coletada: false },
-		  { id: 119, nome: "119 R. Benjamin Silva, 90 Carlópolis 86420-000", lat: -23.579150, lng: -49.733150, coletada: false },
-		  { id: 120, nome: "120 R. Ipê Roxo, 473 Carlópolis 86420-000", lat: -23.429781, lng: -49.712118, coletada: false },
-		  { id: 121, nome: "121 R. Ipê Roxo, 473 Carlópolis 86420-000", lat: -23.429781, lng: -49.712118, coletada: false },
-		  { id: 122, nome: "122 R. Rosseto, 250 Carlópolis 86420-000", lat: -23.574500, lng: -49.729000, coletada: false },
-		  { id: 123, nome: "123 R. Rosseto, 281 Carlópolis 86420-000", lat: -23.574620, lng: -49.729120, coletada: false },
-		  { id: 124, nome: "124 R. Rosseto, 360 Carlópolis 86420-000", lat: -23.574900, lng: -49.729400, coletada: false },
-		  { id: 125, nome: "125 R. Rosseto, 391 Carlópolis 86420-000", lat: -23.575020, lng: -49.729520, coletada: false },
-		  { id: 126, nome: "126 R. Rosseto, 461 Carlópolis 86420-000", lat: -23.575300, lng: -49.729800, coletada: false },
-		  { id: 127, nome: "127 R. João Mariano da Silva Filho, 70 Carlópolis, 86420-000", lat: -23.581100, lng: -49.727500, coletada: false },
-		  { id: 128, nome: "128 R. João Mariano da Silva Filho, 41 Carlópolis, PR", lat: -23.580980, lng: -49.727380, coletada: false },
-		  { id: 129, nome: "129 R. Ana Camilo de Souza Camargo, 61 Carlópolis, PR", lat: -23.582400, lng: -49.726800, coletada: false },
-		  { id: 130, nome: "130 R. Ana Camilo de Souza Camargo, 61 Carlópolis, PR", lat: -23.582400, lng: -49.726800, coletada: false },
-		  { id: 131, nome: "131 R. Ana Camilo de Souza Camargo, 61 Carlópolis, PR", lat: -23.582400, lng: -49.726800, coletada: false },
-		  { id: 132, nome: "132 R. Joel Ben-Hur de Oliveira, 50 Carlópolis, PR", lat: -23.583200, lng: -49.726100, coletada: false },
-		  { id: 133, nome: "133 R. Joel Ben-Hur de Oliveira, 50 Carlópolis,PR", lat: -23.583200, lng: -49.726100, coletada: false },
-		  { id: 134, nome: "134 R. Renato Pereira, 20 Carlópolis, 86420-000", lat: -23.578100, lng: -49.727200, coletada: false },
-		  { id: 135, nome: "135 Av. Murador, 20 Carlópolis 86420-000", lat: -23.425421, lng: -49.720729, coletada: false },
-		  { id: 136, nome: "136 R. Renato Pereira, 999 Carlópolis 86420-000", lat: -23.578900, lng: -49.728100, coletada: false },
-		  { id: 137, nome: "137 R. Renato Pereira, 999 Carlópolis 86420-000", lat: -23.578900, lng: -49.728100, coletada: false },
-	      { id: 138, nome: "138 R. Dr. Rogerio Ignacio da Silva, 170 Carlópolis, 86420-000", lat: -23.578800, lng: -49.735200, coletada: false },
-		  { id: 139, nome: "139 R. José Ribamar de Oliveira, 548 Carlópolis, 86420-000", lat: -23.422818, lng: -49.707516, coletada: false },
-		  { id: 140, nome: "140 R. Leônidas da Silva, 545 Carlópolis, 86420-000", lat: -23.423392, lng: -49.707421, coletada: false },
-		  { id: 141, nome: "141 R. Manuel Francisco dos Santos, 700 Carlópolis, 86420-000", lat: -23.421365, lng: -49.708423, coletada: false },
-		  { id: 142, nome: "142 R. João Carlos da Silva, 608 Carlópolis, 86420-000", lat: -23.420882, lng: -49.708221, coletada: false },
-		  { id: 143, nome: "143 R. João Carlos da Silva, 608 Carlópolis, 86420-000", lat: -23.420882, lng: -49.708221, coletada: false },
-		  { id: 144, nome: "144 R. João Carlos da Silva, 598 Carlópolis, 86420-000", lat: -23.420882, lng: -49.708221, coletada: false },
-		  { id: 145, nome: "145 R. Manuel Francisco dos Santos, 513 Carlópolis, 86420-000", lat: -23.421365, lng: -49.708423, coletada: false },
-		  { id: 146, nome: "146 PR-218, 2814 Carlópolis, 86420-000", lat: -23.433345, lng: -49.725249, coletada: false },
-		  { id: 147, nome: "147 R. Benedito Salles, 2671 Carlópolis, 86420-000", lat: -23.571200, lng: -49.722500, coletada: false },
-		  { id: 148, nome: "148 R. Benedito Salles, 2639 Carlópolis, 86420-000", lat: -23.571350, lng: -49.722650, coletada: false },
-		  { id: 149, nome: "149 PR-218, 2817 Carlópolis, 86420-000", lat: -23.433345, lng: -49.725249, coletada: false },
-		  { id: 150, nome: "150 R. Benedito Salles, 2671 Carlópolis, 86420-000", lat: -23.571200, lng: -49.722500, coletada: false },
-		  { id: 151, nome: "151 PR-218, 130 Carlópolis, 86420-000", lat: -23.433345, lng: -49.725249, coletada: false },
-		  { id: 152, nome: "152 PR-218, 130 Carlópolis, 86420-000", lat: -23.433345, lng: -49.725249, coletada: false },
-		  { id: 153, nome: "153 PR-218, 2539 Carlópolis, 86420-000", lat: -23.428127, lng: -49.679768, coletada: false },
-		  { id: 155, nome: "155 R. Benedito Salles, 1557 Carlópolis, 86420-000", lat: -23.575800, lng: -49.727100, coletada: false },
-		  { id: 156, nome: "156 Rod. Jayme Canet, 1488 Carlópolis, 86420-000", lat: -23.570200, lng: -49.718500, coletada: false },
-		  { id: 157, nome: "157 R. Benedito Salles, 1426 Carlópolis, 86420-000", lat: -23.576300, lng: -49.727600, coletada: false },
-		  { id: 158, nome: "158 Rod. Jayme Canet, 1419 Carlópolis, 86420-000", lat: -23.570500, lng: -49.718800, coletada: false },
-		  { id: 159, nome: "159 R. Jorge Barros, 1575 Carlópolis,86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
-		  { id: 160, nome: "160 R. Jorge Barros, 1575 Carlópolis, 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
-		  { id: 161, nome: "161 R. Delﬁno Mendes, 10 Carlópolis 86420-000", lat: -23.422886, lng: -49.717187, coletada: false },
-		  { id: 162, nome: "162 R. Delﬁno Mendes, 217 Carlópolis 86420-000", lat: -23.422886, lng: -49.717187, coletada: false },
-		  { id: 163, nome: "163 R. Jorge Barros, 1175 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
-		  { id: 164, nome: "164 R. Jorge Barros, 1625 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
-		  { id: 165, nome: "165 R. Jorge Barros, 1704 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
-		  { id: 166, nome: "166 Av. Elson Soares, 1537 Carlópolis 86420-000", lat: -23.425421, lng: -49.720729, coletada: false },
-		  { id: 167, nome: "167 Av. Elson Soares, 1513 Carlópolis 86420-000", lat: -23.425421, lng: -49.720729, coletada: false },
-		  { id: 168, nome: "168 R. Salvira Marquês, 445 Carlópolis 86420-000", lat: -23.420938, lng: -49.716681, coletada: false },
-		  { id: 169, nome: "169 R. Salvira Marquês, 453 Carlópolis 86420-000", lat: -23.420938, lng: -49.716681, coletada: false },
-		  { id: 170, nome: "170 R. Salvira Marquês, 551 Carlópolis 86420-000", lat: -23.420938, lng: -49.716681, coletada: false },
-		  { id: 171, nome: "171 Av. Turística, 582 Carlópolis 86420-000", lat: -23.421193, lng: -49.719944, coletada: false },
-		  { id: 172, nome: "172 R. Francisco Avelino Paiva 816 Carlópolis, 86420-000", lat: -23.423886, lng: -49.720589, coletada: false },
-		  { id: 173, nome: "173 Av. Elson Soares, 1501 Carlópolis 86420-000", lat: -23.425421, lng: -49.720729, coletada: false },
-		  { id: 174, nome: "174 Av. Turística, 610 Centro 86420-000", lat: -23.568200, lng: -49.720100, coletada: false },
-		  { id: 175, nome: "175 Av. Turística, 645 Carlópolis  86420-000", lat: -23.421193, lng: -49.719944, coletada: false },
-		  { id: 176, nome: "176 R. Fidêncio de Melo, 573 Carlópolis 86420-000", lat: -23.580100, lng: -49.729800, coletada: false },
-		  { id: 177, nome: "177 R. Yoneo Yoshitani, 437 Carlópolis 86420-000", lat: -23.423423, lng: -49.722751, coletada: false },
-		  { id: 178, nome: "178 R. Yoneo Yoshitani, 458 Carlópolis 86420-000", lat: -23.423423, lng: -49.722751, coletada: false },
-		  { id: 179, nome: "179 R. Edwirges Benedito do Amaral 1811 Carlópolis, 86420-000", lat: -23.585500, lng: -49.724200, coletada: false },
-		  { id: 180, nome: "180 R. Eugênio Neves Soares, 1767 Carlópolis 86420-000", lat: -23.421074, lng: -49.725479, coletada: false },
-		  { id: 181, nome: "181 R. Yoneo Yoshitani, 314 Carlópolis 86420-000", lat: -23.423423, lng: -49.722751, coletada: false },
-		  { id: 182, nome: "182 R. Yoneo Yoshitani, 278 Carlópolis 86420-000", lat: -23.423423, lng: -49.722751, coletada: false },
-		  { id: 183, nome: "183 R. Antônio Jonas Ferreira Pinto 715 Carlópolis, 86420-000", lat: -23.423625, lng: -49.719297, coletada: false },
-		  { id: 184, nome: "184 R. Antônio Jonas Ferreira Pinto 681 Carlópolis, 86420-000", lat: -23.423625, lng: -49.719297, coletada: false },
-		  { id: 185, nome: "185 R. Francisco Avelino Paiva 575 Carlópolis, 86420-000", lat: -23.423886, lng: -49.720589, coletada: false },
-		  { id: 186, nome: "186 R. Fidêncio de Melo, 408 Carlópolis 86420-000", lat: -23.579500, lng: -49.729200, coletada: false },
-		  { id: 187, nome: "187 R. Fidêncio de Melo, 369 Carlópolis 86420-000", lat: -23.579350, lng: -49.729050, coletada: false },
-		  { id: 188, nome: "188 R. Fidêncio de Melo, 332 Carlópolis 86420-000", lat: -23.579200, lng: -49.728900, coletada: false },
-		  { id: 189, nome: "189 R. Fidêncio de Melo, 302 Carlópolis 86420-000", lat: -23.579080, lng: -49.728780, coletada: false },
-		  { id: 190, nome: "190 R. Jorge Barros, 1490 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
-		  { id: 191, nome: "191 R. Jorge Barros, 1516 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
-		  { id: 192, nome: "192 R. Fidêncio de Melo, 239 Carlópolis 86420-000", lat: -23.578850, lng: -49.728550, coletada: false },
-		  { id: 193, nome: "193 R. Jorge Barros, 1398 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
-		  { id: 194, nome: "194 R. Antônio Jonas Ferreira Pinto 346 Carlópolis, 86420-000", lat: -23.423625, lng: -49.719297, coletada: false },
-		  { id: 195, nome: "195 R. Antônio Jonas Ferreira Pinto 310 Carlópolis, 86420-000", lat: -23.423625, lng: -49.719297, coletada: false },
-		  { id: 196, nome: "196 R. Benedito Salles, 1098 centro 86420-000", lat: -23.577600, lng: -49.728900, coletada: false },
-		  { id: 197, nome: "197 R. Benedito Salles, 1132 Centro 86420-000", lat: -23.577450, lng: -49.728750, coletada: false },
-		  { id: 198, nome: "198 PR-218, 1077 Carlópolis 86420-000", lat: -23.433345, lng: -49.725249, coletada: false },
-		  { id: 199, nome: "199 R. Jorge Barros, 1344 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
-		  { id: 200, nome: "200 R. Jorge Barros, 1333 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
-		  { id: 201, nome: "201 R. Jorge Barros, 1345 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
-		  { id: 202, nome: "202 R. Antônio Jonas Ferreira Pinto 372 Carlópolis, 86420-000", lat: -23.423625, lng: -49.719297, coletada: false },
-		  { id: 203, nome: "203 R. Antônio Jonas Ferreira Pinto 398 Carlópolis, 86420-000", lat: -23.423625, lng: -49.719297, coletada: false },
-		  { id: 204, nome: "204 R. Antônio Jonas Ferreira Pinto 434 Carlópolis, 86420-000", lat: -23.423625, lng: -49.719297, coletada: false },
-		  { id: 205, nome: "205 R. Antônio Jonas Ferreira Pinto 431 Carlópolis, 86420-000", lat: -23.423625, lng: -49.719297, coletada: false },
-		  { id: 206, nome: "206 Av. Elson Soares, 1210 Carlópolis 86420-000", lat: -23.425421, lng: -49.720729, coletada: false },
-		  { id: 207, nome: "207 Av. Elson Soares, 1217 Carlópolis 86420-000", lat: -23.425421, lng: -49.720729, coletada: false },
-		  { id: 208, nome: "208 Av. Elson Soares, 1122 Carlópolis 86420-000", lat: -23.425421, lng: -49.720729, coletada: false },
-		  { id: 209, nome: "209 Av. Elson Soares, 1078 Carlópolis 86420-000", lat: -23.425421, lng: -49.720729, coletada: false },
-		  { id: 210, nome: "210 Av. Elson Soares, 1048 Centro 86420-000", lat: -23.575100, lng: -49.732800, coletada: false },
-		  { id: 211, nome: "211 Av. Elson Soares, 1048 Centro 86420-000", lat: -23.575100, lng: -49.732800, coletada: false },
-		  { id: 212, nome: "212 Av. Elson Soares, 1022 Carlópolis 86420-000", lat: -23.425421, lng: -49.720729, coletada: false },
-		  { id: 213, nome: "213 R. Francisco Avelino Paiva 322 Carlópolis, 86420-000", lat: -23.423886, lng: -49.720589, coletada: false },
-		  { id: 214, nome: "214 R. Francisco Avelino Paiva276 Carlópolis, 86420-000", lat: -23.578200, lng: -49.736100, coletada: false },
-		  { id: 215, nome: "215 R. Jorge Barros, 1149 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
-		  { id: 216, nome: "216 R. Dra. Paula e Silva, 658 Centro 86420-000", lat: -23.578500, lng: -49.731000, coletada: false },
-		  { id: 217, nome: "217 R. Jorge Barros, 1029 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
-		  { id: 218, nome: "218 R. Dra. Paula e Silva, 665 Carlópolis 86420-000", lat: -23.426500, lng: -49.720329, coletada: false },
-		  { id: 219, nome: "219 R. Dra. Paula e Silva, 625 Carlópolis 86420-000", lat: -23.426500, lng: -49.720329, coletada: false },
-		  { id: 220, nome: "220 R. Dra. Paula e Silva, 761 Carlópolis 86420-000", lat: -23.426500, lng: -49.720329, coletada: false },
-		  { id: 221, nome: "221 R. Laurindo Franco de Godói 578 Carlópolis, 86420-000", lat: -23.582600, lng: -49.731500, coletada: false },
-		  { id: 222, nome: "222 Av. Elson Soares, 767 Carlópolis 86420-000", lat: -23.425421, lng: -49.720729, coletada: false },
-		  { id: 223, nome: "223 Av. Elson Soares, 767 Carlópolis 86420-000", lat: -23.425421, lng: -49.720729, coletada: false },
-		  { id: 224, nome: "224 Av. Elson Soares, 760 Avenida 86420-000", lat: -23.575400, lng: -49.732500, coletada: false },
-		  { id: 225, nome: "225 R. Laurindo Franco de Godói 579 Carlópolis, 86420-000", lat: -23.582610, lng: -49.731510, coletada: false },
-		  { id: 226, nome: "226 R. Laurindo Franco de Godói 567 Carlópolis, 86420-000", lat: -23.582550, lng: -49.731450, coletada: false },
-		  { id: 227, nome: "227 R. Laurindo Franco de Godói 545 Carlópolis, 86420-000", lat: -23.582450, lng: -49.731350, coletada: false },
-		  { id: 228, nome: "228 R. Jorge Barros, 987 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
-		  { id: 229, nome: "229 R. Laurindo Franco de Godói 464 Carlópolis, 86420-000", lat: -23.582250, lng: -49.731200, coletada: false },
-		  { id: 230, nome: "230 R. Laurindo Franco de Godói 451 Carlópolis, 86420-000", lat: -23.582200, lng: -49.731150, coletada: false },
-		  { id: 231, nome: "231 R. Laurindo Franco de Godói 451 Carlópolis, 86420-000", lat: -23.582200, lng: -49.731150, coletada: false },
-		  { id: 232, nome: "232 R. Laurindo Franco de Godói 464 Carlópolis, 86420-000", lat: -23.582250, lng: -49.731200, coletada: false },
-		  { id: 233, nome: "233 R. Laurindo Franco de Godói 787 Carlópolis, 86420-000", lat: -23.583100, lng: -49.732100, coletada: false },
-		  { id: 234, nome: "234 R. Laurindo Franco de Godói 429 Carlópolis, 86420-000", lat: -23.582100, lng: -49.731050, coletada: false },
-		  { id: 235, nome: "235 R. Laurindo Franco de Godói, 425 Centro 86420-000", lat: -23.582080, lng: -49.731030, coletada: false },
-		  { id: 236, nome: "236 R. Laurindo Franco de Godói 415 Carlópolis, 86420-000", lat: -23.582050, lng: -49.731000, coletada: false },
-		  { id: 237, nome: "237 R. Benedito Salles, 659 Centro 86420-000", lat: -23.578800, lng: -49.729800, coletada: false },
-		  { id: 238, nome: "238 R. Kalil Keder, 306 Carlópolis 86420-000", lat: -23.426849, lng: -49.722942, coletada: false },
-		  { id: 239, nome: "239 R. Kalil Keder, 463 Carlópolis 86420-000", lat: -23.426849, lng: -49.722942, coletada: false },
-		  { id: 240, nome: "240 R. Kalil Keder, 463 Carlópolis 86420-000", lat: -23.426849, lng: -49.722942, coletada: false },
-		  { id: 241, nome: "241 R. Kalil Keder, 483 Carlópolis 86420-000", lat: -23.426849, lng: -49.722942, coletada: false },
-		  { id: 242, nome: "242 PR-151, 528 Carlópolis 86420-000", lat: -23.410610, lng: -49.767001, coletada: false },
-		  { id: 243, nome: "243 R. Marcos Rodrigues do Amaral 528 Carlópolis, 86420-000", lat: -23.431193, lng: -49.717848, coletada: false },
-		  { id: 244, nome: "244 R. Kalil Keder, 558 Centro 86420-000", lat: -23.577000, lng: -49.730000, coletada: false },
-		  { id: 245, nome: "245 R. Francisco Avelino Paiva 50 Carlópolis, 86420-000", lat: -23.423886, lng: -49.720589, coletada: false },
-		  { id: 246, nome: "246 Rua Laurindo Franco de Godói, 754 Centro, Carlópolis, 86420-054", lat: -23.583000, lng: -49.732000, coletada: false },
-  		  { id: 247, nome: "247 R. Joaquim do Carmo de Oliveira Viléla 85 Carlópolis, 86420-000", lat: -23.425053, lng: -49.722944, coletada: false },
-		  { id: 248, nome: "248 R. Laurindo Franco de Godói 804 Carlópolis, 86420-000", lat: -23.583200, lng: -49.732200, coletada: false },
-		  { id: 249, nome: "249 R. Benedita da Cruz Domingues 51 Carlópolis, 86420-000", lat: -23.423309, lng: -49.725678, coletada: false },
-		  { id: 250, nome: "250 R. Benedita da Cruz Domingues 59 Carlópolis, 86420-000", lat: -23.423309, lng: -49.725678, coletada: false },
-		  { id: 251, nome: "251 R. Dra. Paula e Silva, 1156 Carlópolis 86420-000", lat: -23.426500, lng: -49.720329, coletada: false },
-		  { id: 252, nome: "252 R. Dra. Paula e Silva, 1143 Carlópolis 86420-000", lat: -23.426500, lng: -49.720329, coletada: false },
-		  { id: 253, nome: "253 R. Benedita da Cruz Domingues 209 Carlópolis, 86420-000", lat: -23.423309, lng: -49.725678, coletada: false },
-		  { id: 254, nome: "254 R. Yasuta Ono, 2204 Carlópolis 86420-000", lat: -23.423196, lng: -49.726332, coletada: false },
-		  { id: 255, nome: "255 R. Yasuta Ono, 2160 Carlópolis 86420-000", lat: -23.423196, lng: -49.726332, coletada: false },
-		  { id: 256, nome: "256 Av. Jaboticabal, 2213 Carlópolis 86420-000", lat: -23.425318, lng: -49.726876, coletada: false },
-		  { id: 257, nome: "257 R. Kalil Keder, 1145 Carlópolis 86420-000", lat: -23.426849, lng: -49.722942, coletada: false },
-		  { id: 258, nome: "258 R. Prof. Alfredo Mansur, 321 Carlópolis 86420-000", lat: -23.426209, lng: -49.727330, coletada: false },
-		  { id: 259, nome: "259 R. Prof. Alfredo Mansur, 388 Carlópolis 86420-000", lat: -23.426209, lng: -49.727330, coletada: false },
-		  { id: 260, nome: "260 R. Kalil Keder, 900 Carlópolis 86420-000", lat: -23.426849, lng: -49.722942, coletada: false },
-		  { id: 261, nome: "261 R. Marcos Rodrigues do Amaral 752 Carlópolis, 86420-000", lat: -23.431193, lng: -49.717848, coletada: false },
-		  { id: 262, nome: "262 PR-151, 752 Carlópolis 86420-000", lat: -23.410610, lng: -49.767001, coletada: false },
-		  { id: 263, nome: "263 R. João Feres, 16 Carlópolis 86420-000", lat: -23.426464, lng: -49.725256, coletada: false },
-		  { id: 264, nome: "264 R. João Feres, 265 Carlópolis 86420-000", lat: -23.426464, lng: -49.725256, coletada: false },
-		  { id: 265, nome: "265 R. João Feres, 273 Carlópolis 86420-000", lat: -23.426464, lng: -49.725256, coletada: false },
-		  { id: 266, nome: "266 R. João Antônio Ribeiro, 170 Carlópolis 86420-000", lat: -23.428415, lng: -49.727248, coletada: false },
-		  { id: 267, nome: "267 R. João Antônio Ribeiro, 170 Carlópolis 86420-000", lat: -23.428415, lng: -49.727248, coletada: false },
-		  { id: 268, nome: "268 R. José Talim, 744 Carlópolis 86420-000", lat: -23.431119, lng: -49.720491, coletada: false },
-		  { id: 269, nome: "269 R. José Talim, 768 Carlópolis 86420-000", lat: -23.431119, lng: -49.720491, coletada: false },
-		  { id: 270, nome: "270 Av. Elson Soares, 489 Centro 86420-000", lat: -23.576200, lng: -49.733500, coletada: false },
-		  { id: 271, nome: "271 R. Jorge Barros, 563 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
-		  { id: 272, nome: "272 R. Jorge Barros, 625 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
-		  { id: 273, nome: "273 R. Jorge Barros, 641 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
-		  { id: 274, nome: "274 R. Jorge Barros, 680 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
-		  { id: 275, nome: "275 R. Benedito Salles, 435 Carlópolis 86420-000", lat: -23.579500, lng: -49.730500, coletada: false },
-		  { id: 276, nome: "276 R. Benedito Salles, 1230 Carlópolis 86420-000", lat: -23.577100, lng: -49.728400, coletada: false },
-		  { id: 277, nome: "277 Rod. Jayme Canet, 341 Carlópolis 86420-000", lat: -23.571800, lng: -49.719800, coletada: false },
-		  { id: 278, nome: "278 R. Paraná, 349 Carlópolis 86420-000", lat: -23.429704, lng: -49.723258, coletada: false },
-		  { id: 279, nome: "279 Rod. José Alves Pereira, 250 Carlópolis 86420-000", lat: -23.585200, lng: -49.720200, coletada: false },
-		  { id: 280, nome: "280 R. José Aleixo Sobrinho, 336 Carlópolis 86420-000", lat: -23.430119, lng: -49.723632, coletada: false },
-		  { id: 281, nome: "281 R. José Sales, 262 Carlópolis 86420-000", lat: -23.577510, lng: -49.731310, coletada: false },
-		  { id: 282, nome: "282 Rod. José Alves Pereira, 233 Carlópolis 86420-000", lat: -23.585100, lng: -49.720100, coletada: false },
-		  { id: 283, nome: "283 R. Aroldo José Barbosa, 361 Carlópolis 86420-000", lat: -23.432586, lng: -49.721293, coletada: false },
-		  { id: 284, nome: "284 R. Jorge Barros, 547 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
-		  { id: 285, nome: "285 Rod. José Alves Pereira, 185 Carlópolis 86420-000", lat: -23.584900, lng: -49.719900, coletada: false },
-		  { id: 286, nome: "286 R. Benedito Salles, 1508 Carlópolis 86420-000", lat: -23.576000, lng: -49.727300, coletada: false },
-		  { id: 287, nome: "287 Rod. José Alves Pereira 8-220 Carlópolis, 86420-000", lat: -23.585000, lng: -49.720000, coletada: false },
-		  { id: 288, nome: "288 Rod. José Alves Pereira 8-220 Carlópolis, 86420-000", lat: -23.585000, lng: -49.720000, coletada: false },
-		  { id: 289, nome: "289 R. Gênova, 20 Carlópolis 86420-000", lat: -23.578800, lng: -49.731200, coletada: false },
-		  { id: 290, nome: "290 PR-218, 57 Carlópolis 86420-000", lat: -23.433345, lng: -49.725249, coletada: false },
-		  { id: 291, nome: "291 R. Benedito Salles, 10 Centro 86420-000", lat: -23.581000, lng: -49.732000, coletada: false },
-		  { id: 292, nome: "292 R. Gênova, 20 Carlópolis 86420-000", lat: -23.578800, lng: -49.731200, coletada: false },
-		  { id: 293, nome: "293 R. Benedito Salles, 10 Centro 86420-000", lat: -23.581000, lng: -49.732000, coletada: false },
-		  { id: 294, nome: "294 R. Benedito Salles, 27 Carlópolis 86420-000", lat: -23.580900, lng: -49.731900, coletada: false },
-		  { id: 295, nome: "295 R. Aroldo José Barbosa, 324 Carlópolis 86420-000", lat: -23.432586, lng: -49.721293, coletada: false },
-		  { id: 296, nome: "296 R. José Talim, 350 Carlópolis 86420-000", lat: -23.431119, lng: -49.720491, coletada: false },
-		  { id: 297, nome: "297 R. José Talim, 751 Carlópolis 86420-000", lat: -23.431119, lng: -49.720491, coletada: false },
-		  { id: 298, nome: "298 R. André Jorge Cleli, 201 Centro 86420-000", lat: -23.576000, lng: -49.728000, coletada: false },
-		  { id: 299, nome: "299 R. Jorge Barros, 903 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
-		  { id: 300, nome: "300 R. Benedito Salles, 462 Centro 86420-000", lat: -23.579400, lng: -49.730400, coletada: false },
-		  { id: 301, nome: "301 Rod. Jayme Canet, 467 Carlópolis 86420-000", lat: -23.571400, lng: -49.719400, coletada: false },
-		  { id: 302, nome: "302 R. Benedito Salles, 1124 Carlópolis 86420-000", lat: -23.577500, lng: -49.728800, coletada: false },
-		  { id: 303, nome: "303 R. Benedito Salles, 539 Carlópolis 86420-000", lat: -23.579200, lng: -49.730200, coletada: false },
-		  { id: 304, nome: "304 R. Benedito Salles, 560 Carlópolis 86420-000", lat: -23.579100, lng: -49.730100, coletada: false },
-		  { id: 306, nome: "306 R. Dra. Paula e Silva, 958 Carlópolis 86420-000", lat: -23.426500, lng: -49.720329, coletada: false },
-		  { id: 307, nome: "307 R. Ataliba Leonel, 445 Carlópolis 86420-000", lat: -23.434018, lng: -49.705827, coletada: false },
-		  { id: 308, nome: "308 R. Benedito Salles, 903 Carlópolis 86420-000", lat: -23.578100, lng: -49.729300, coletada: false },
-		  { id: 309, nome: "309 R. Nicolau Miguel, 400 Carlópolis 86420-000", lat: -23.425687, lng: -49.719818, coletada: false },
-		  { id: 310, nome: "310 R. Benedito Salles, 918 Centro 86420-000", lat: -23.578050, lng: -49.729250, coletada: false },
-		  { id: 311, nome: "311 R. Benedito Salles, 1030 Carlópolis 86420-000", lat: -23.577800, lng: -49.729000, coletada: false },
-		  { id: 312, nome: "312 R. Benedito Salles, 1340 Centro 86420-000", lat: -23.576800, lng: -49.728100, coletada: false },
-		  { id: 313, nome: "313 R. João Gervásio, 124 Carlópolis 86420-000", lat: -23.422778, lng: -49.712417, coletada: false },
-		  { id: 314, nome: "314 R. João Gervásio, 254 Carlópolis 86420-000", lat: -23.422778, lng: -49.712417, coletada: false },
-		  { id: 315, nome: "315 R. João Gervásio, 254 Carlópolis 86420-000", lat: -23.422778, lng: -49.712417, coletada: false },
-		  { id: 316, nome: "316 R. Francisco Avelino Paiva, 655, Carlópolis 86420-000", lat: -23.423886, lng: -49.720589, coletada: false },
+        // 2. LISTA INICIAL DE ENDEREÇOS DA RONDA
+        let enderecosRonda = [
+			
+  { id: 1, nome: "R. Benedito Salles, 2023", lat: -23.4285, lng: -49.7198, coletada: false },
+  { id: 2, nome: "Rod. José Alves Pereira", lat: -23.4310, lng: -49.7150, coletada: false },
+  { id: 3, nome: "Rod. José Alves Pereira, 1363", lat: -23.4335, lng: -49.7120, coletada: false },
+  { id: 4, nome: "R. Luis Consulmagno de Proenca, 339 Carlópolis, 86420-000", lat: -23.434162, lng: -49.728296, coletada: false },
+  { id: 6, nome: "R. Luis Consulmagno de Proenca, 351 Carlópolis, 86420-000", lat: -23.434437, lng: -49.729791, coletada: false },
+  { id: 7, nome: "R. Luis Consulmagno de Proenca, 235 Carlópolis, 86420-000", lat: -23.434815, lng: -49.729806, coletada: false },
+  { id: 8, nome: "R. João de Maria, 1702 Carlópolis, 86420-000", lat: -23.435224, lng: -49.733228, coletada: false },
+  { id: 9, nome: "R. João de Maria, 1712 Carlópolis, 86420-000", lat: -23.435277, lng: -49.733294, coletada: false },
+  { id: 10, nome: "R. Antônio de Oliveira, 1197 Carlópolis, 86420-000", lat: -23.435830, lng: -49.734500, coletada: false },
+  { id: 11, nome: "R. José Salles, 122 Carlópolis 86420-000", lat: -23.440046, lng: -49.728925, coletada: false },
+  { id: 12, nome: "R. José da Silva, 52 Carlópolis, 86420-000", lat: -23.439741, lng: -49.727286, coletada: false },
+  { id: 13, nome: "R. José Salles, 99 Carlópolis 86420-000", lat: -23.438949, lng: -49.727564, coletada: false },
+  { id: 14, nome: "R. José Salles, 55 Carlópolis 86420-000", lat: -23.437802, lng: -49.725776, coletada: false },
+  { id: 15, nome: "R. José Salles, 350c Carlópolis 86420-000", lat: -23.434268, lng: -49.722219, coletada: false },
+  { id: 16, nome: "Gênova, 241 Carlópolis 86420-000", lat: -23.433597, lng: -49.722345, coletada: false },
+  { id: 17, nome: "R. Cap. Estácio, 200 Carlópolis 86420-000", lat: -23.433417, lng: -49.722828, coletada: false },
+  { id: 18, nome: "R. Pádua, 548 Carlópolis 86420-000", lat: -23.433198217250947, lng: -49.72355872501941, coletada: false},
+  { id: 19, nome: "R. Aroldo José Barbosa, 668 Jardim Itália 86420-000", lat: -23.433023, lng: -49.720855, coletada: false },
+  { id: 21, nome: "R. Napolis, 321 Carlópolis 86420-000", lat: -23.433546, lng: -49.721334, coletada: false },
+  { id: 22, nome: "R. Napolis, 258 Carlópolis 86420-000", lat: -23.433639, lng: -49.720992, coletada: false },
+  { id: 23, nome: "R. Napolis, 180 Carlópolis 86420-000", lat: -23.433676, lng: -49.720991, coletada: false },
+  { id: 24, nome: "R. Haroldo José Barbosa, 402 Carlópolis 86420-000", lat: -23.430323, lng: -49.724027, coletada: false },
+  { id: 25, nome: "R. José Salles, 471 Carlópolis 86420-000", lat: -23.434035, lng: -49.722042, coletada: false },
+  { id: 26, nome: "R. José Gonçalves Mendes, 663 Carlópolis 86420-000", lat: -23.432346, lng: -49.718478, coletada: false },
+  { id: 27, nome: "R. Adorema Ana Rech, 712 Carlópolis 86420-000", lat: -23.432331, lng: -49.719197, coletada: false },
+  { id: 28, nome: "R. Veneza, 381 Carlópolis 86420-000", lat: -23.431870, lng: -49.719594, coletada: false },
+  { id: 29, nome: "R. Veneza, 367 Carlópolis 86420-000", lat: -23.432175, lng: -49.719659, coletada: false },
+  { id: 30, nome: "R. Veneza, 266 Carlópolis 86420-000", lat: -23.431712, lng: -49.720511, coletada: false },
+  { id: 31, nome: "R. Veneza, 242 Carlópolis 86420-000", lat: -23.431648, lng: -49.720752, coletada: false },
+  { id: 32, nome: "R. Veneza, 138 Carlópolis 86420-000", lat: -23.432298, lng: -49.719922, coletada: false },
+  { id: 33, nome: "R. José Talim, 222 Carlópolis 86420-000", lat: -23.431080, lng: -49.720621, coletada: false },
+  { id: 34, nome: "R. José Sales, 260 Carlópolis 86420-000", lat: -23.431577, lng: -49.720074, coletada: false },
+  { id: 35, nome: "R. José Talim, 160 Carlópolis 86420-000", lat: -23.431449, lng: -49.720099, coletada: false },
+  { id: 36, nome: "R. José Talim, 123 Carlópolis 86420-000", lat: -23.431934, lng: -49.719564, coletada: false },
+  { id: 37, nome: "R. Cap. Estácio, 75 Carlópolis 86420-000", lat: -23.430676, lng: -49.720622, coletada: false },
+  { id: 38, nome: "R. Cap. Estácio, 356 Carlópolis 86420-000", lat: -23.430453, lng: -49.720124, coletada: false },
+  { id: 39, nome: "R. André Jorge Cleli, 412 Carlópolis 86420-000", lat: -23.429554115355398, lng: -49.720701420239955, coletada: false },
+  { id: 40, nome: "R. Padre Hugo, 486 Carlópolis86420-000", lat: -23.427663686870122, lng: -49.7188639641821, coletada: false },
+  { id: 41, nome: "R. Padre Hugo, 388 Carlópolis 86420-000", lat: -23.429110560805206, lng: -49.72034537808766, coletada: false },
+  { id: 42, nome: "R. Padre Hugo, 422 Carlópolis 86420-000", lat: -23.428329236729173, lng: -49.71950306274238, coletada: false },
+  { id: 43, nome: "R. Ataliba Leonel, 514 Carlópolis 86420-000", lat: -23.427234046385426, lng: -49.7188883627424, coletada: false },
+  { id: 44, nome: "R. Dra. Paula e Silva, 442 Carlópolis 86420-000", lat: -23.427667135793126, lng: -49.718427805069645, coletada: false },
+  { id: 45, nome: "R. Dra. Paula e Silva, 445 Carlópolis 86420-000", lat: -23.42779584726347, lng: -49.71857494739694, coletada: false },
+  { id: 46, nome: "R. Padre Hugo, 978 Carlópolis 86420-000", lat: -23.426223666923903, lng: -49.7177113204151, coletada: false },
+  { id: 47, nome: "R. Padre Hugo, 1020 Carlópolis 86420-000", lat: -23.425928299851194, lng: -49.71730846274249, coletada: false },
+  { id: 48, nome: "R. Padre Hugo, 130 Carlópolis 86420-000", lat: -23.428236, lng: -49.719354, coletada: false },
+  { id: 49, nome: "R. Nicolau Miguel, 371 Centro 86420-000", lat: -23.426525345277902, lng: -49.718736362742284, coletada: false },
+  { id: 50, nome: "R. Cap. Estácio, 626 Carlópolis 86420-000", lat: -23.427891203064792, lng: -49.717752305069666, coletada: false },
+  { id: 51, nome: "R. Cap. Estácio, 550 Carlópolis 86420-000", lat: -23.428430003946996, lng: -49.71821293390577, coletada: false },
+  { id: 52, nome: "R. Laurindo Franco de Godói, 305 Carlópolis, 86420-000", lat: -23.42878733737695, lng: -49.71898630506968, coletada: false },
+  { id: 53, nome: "R. Laurindo Franco de Godói, 230 Carlópolis, 86420-000", lat: -23.42894576052306, lng: -49.71820637623313, coletada: false },
+  { id: 54, nome: "R. Cap. Estácio, 533 Carlópolis 86420-000", lat: -23.429518, lng: -49.719246, coletada: false },
+  { id: 55, nome: "R. Kalil Keder, 374 Carlópolis 86420-000", lat: -23.42979538301025, lng: -49.7192248339057, coletada: false },
+  { id: 56, nome: "R. Kalil Keder, 384 Carlópolis 86420-000", lat: -23.429800450396264, lng: -49.719146547396804, coletada: false },
+  { id: 57, nome: "R. Marcos Rodrigues do Amaral, 444 Carlópolis, 86420-000", lat: -23.430430083860504, lng: -49.71859380692387, coletada: false },
+  { id: 58, nome: "Rua Adorema Ana Rech, 429 Carlópolis 86420-000", lat: -23.430715251826076, lng: -49.71771760506945, coletada: false },
+  { id: 59, nome: "R. José Gonçalves Mendes, 178 Carlópolis 86420-000", lat: -23.431214252605997, lng: -49.7172397339058, coletada: false },
+  { id: 60, nome: "R. José Gonçalves Mendes, 166 Carlópolis 86420-000", lat: -23.431090175978657, lng: -49.71724736274207, coletada: false },
+  { id: 61, nome: "R. Manoel Dias, 122 Carlópolis 86420-000", lat: -23.430686, lng: -49.716146, coletada: false },
+  { id: 62, nome: "R. José Gonçalves Mendes, 70 Carlópolis 86420-000", lat: -23.432516, lng: -49.718180, coletada: false },
+  { id: 63, nome: "Rua Adorema Ana Rech, 222 Carlópolis 86420-000", lat: -23.43008751829493, lng: -49.71685729157852, coletada: false },
+  { id: 64, nome: "Rua Adorema Ana Rech, 242 Carlópolis 86420-000", lat: -23.431001, lng: -49.717640, coletada: false },
+  { id: 65, nome: "R. Laurindo Franco de Godói, 80 Carlópolis, 86420-000", lat: -23.42983001783489, lng: -49.717108147396814, coletada: false },
+  { id: 66, nome: "R. João Currenca Borrego, 174 Carlópolis 86420-000", lat: -23.428652, lng: -49.717166, coletada: false },
+  { id: 67, nome: "R. Ataliba Leonel, 262 Carlópolis 86420-000", lat: -23.428889586775103, lng: -49.717098328252774, coletada: false },
+  { id: 68, nome: "R. Laudelino Salles de Azevedo, 282 Carlópolis, 86420-000", lat: -23.429202, lng: -49.716823, coletada: false },
+  { id: 69, nome: "R. Quaresmeira Roxa, 10 Carlópolis 86420-000", lat: -23.430614863380196, lng: -49.714820791578504, coletada: false },
+  { id: 70, nome: "R. Quaresmeira Roxa, 10 Carlópolis 86420-000", lat: -23.430979, lng: -49.711145, coletada: false },
+  { id: 71, nome: "R. Pau Ferro, 389 Carlópolis 86420-000", lat: -23.428073947698028, lng: -49.71361332041506, coletada: false },
+  { id: 72, nome: "R. Pau Ferro, 349 Carlópolis 86420-000", lat: -23.42849031544188, lng: -49.71368456274235, coletada: false },
+  { id: 73, nome: "R. Pau Ferro, 340 Carlópolis 86420-000", lat: -23.428605815648222, lng: -49.7134429627422, coletada: false },
+  { id: 74, nome: "R. Pau Ferro, 308 Carlópolis 86420-000", lat: -23.428905837544473, lng: -49.71345569157843, coletada: false },
+  { id: 75, nome: "R. Alfeneiro, 332 Carlópolis 86420-000", lat: -23.429038, lng: -49.713091, coletada: false },
+  { id: 76, nome: "R. Sibipiruna, 288 Carlópolis 86420-000", lat: -23.429099, lng: -49.712571, coletada: false },
+  { id: 77, nome: "R. Ipê Roxo, 297 Carlópolis 86420-000", lat: -23.429406872846478, lng: -49.71228066274217, coletada: false },
+  { id: 78, nome: "R. Ipê Roxo, 281 Carlópolis 86420-000", lat: -23.429639050144033, lng: -49.712278220414895, coletada: false },
+  { id: 79, nome: "R. Ipê Roxo, 272 Carlópolis 86420-000", lat: -23.429768217724543, lng: -49.71196374739679, coletada: false },
+  { id: 80, nome: "R. Ipê Roxo, 148 Carlópolis 86420-000", lat: -23.431084664184514, lng: -49.71215594739674, coletada: false },
+  { id: 81, nome: "R. Ipê Roxo, 132 Carlópolis 86420-000", lat: -23.431311596851806, lng: -49.71220353390572, coletada: false },
+  { id: 82, nome: "R. Chuva de Ouro, 173 Carlópolis 86420-000", lat: -23.430821107862034, lng: -49.711908162742134, coletada: false },
+  { id: 83, nome: "R. Chuva de Ouro, 225 Carlópolis 86420-000", lat: -23.429889, lng: -49.711594, coletada: false },
+  { id: 84, nome: "R. Munguba, 258 Carlópolis 86420-000", lat: -23.43133235279058, lng: -49.710385518560514, coletada: false },
+  { id: 85, nome: "R. Munguba, 320 Carlópolis 86420-000", lat: -23.430514, lng: -49.710429, coletada: false },
+  { id: 86, nome: "R. Quaresmeira Roxa, 295 Carlópolis 86420-000", lat: -23.431013, lng: -49.710241, coletada: false },
+  { id: 87, nome: "R. Espatódia, 246 Carlópolis 86420-000", lat: -23.431510341227245, lng: -49.709958191578494, coletada: false },
+  { id: 88, nome: "R. Espatódia, 186 Carlópolis 86420-000", lat: -23.43202753004303, lng: -49.710004347396676, coletada: false },
+  { id: 89, nome: "R. Espatódia, 151 Carlópolis 86420-000", lat: -23.432303298328016, lng: -49.71034460506937, coletada: false },
+  { id: 90, nome: "R. Espatódia, 138 Carlópolis 86420-000", lat: -23.431491, lng: -49.709942, coletada: false },
+  { id: 91, nome: "R. Jacarandá Mimoso, 187 Carlópolis 86420-000", lat: -23.432017, lng: -49.709633, coletada: false },
+  { id: 92, nome: "R. Extremosa, 350 Vista Alegre 86420-000", lat: -23.43054955156711, lng: -49.70953996459664, coletada: false },
+  { id: 93, nome: "R. Extremosa, 479 Carlópolis 86420-000", lat: -23.429838, lng: -49.709514, coletada: false },
+  { id: 94, nome: "R. Magnólia, 519 Carlópolis 86420-000", lat: -23.429791, lng: -49.709923, coletada: false },
+  { id: 95, nome: "R. Bauinea, 616 Carlópolis 86420-000", lat: -23.428298, lng: -49.711380, coletada: false },
+  { id: 96, nome: "R. Salix Babilônica, 615 Carlópolis 86420-000", lat: -23.42823141262595, lng: -49.709134416320154, coletada: false },
+  { id: 97, nome: "R. Salix Babilônica, 41 Carlópolis 86420-000", lat: -23.428281, lng: -49.708949, coletada: false },
+  { id: 98, nome: "R. Romã, 136 Carlópolis 86420-000", lat: -23.430313, lng: -49.708643, coletada: false },
+  { id: 99, nome: "R. lazara Maria Alves, 341 Carlópolis 86420-000", lat: -23.430030994945668, lng: -49.70455497808762, coletada: false },
+  { id: 100, nome: "Silvio José Banik, 820 Carlópolis 86420-000", lat: -23.431217096711148, lng: -49.705739133905794, coletada: false },
+  { id: 101, nome: "R. Tadashi Uto, 140 Carlópolis 86420-000", lat: -23.430835, lng: -49.706168, coletada: false },
+  { id: 102, nome: "R. José Cândido de Souza, 91 Carlópolis 86420-000", lat: -23.431678853332098, lng: -49.70695107623308, coletada: false },
+  { id: 103, nome: "R. José Cândido de Souza, 260 Carlópolis 86420-000", lat: -23.431530264947302, lng: -49.70522559157854, coletada: false },
+  { id: 104, nome: "R. Benjamin Silva, 261 Carlópolis 86420-000", lat: -23.43178265349443, lng: -49.70513486274209, coletada: false },
+  { id: 105, nome: "R. Evaristo Sanches Garcia, 321 Carlópolis, 86420-000", lat: -23.432199298173195, lng: -49.704528633905696, coletada: false },
+  { id: 106, nome: "R. Evaristo Sanches Garcia, 291 Carlópolis, 86420-000", lat: -23.432201710122758, lng: -49.70481513390583, coletada: false },
+  { id: 107, nome: "R. Evaristo Sanches Garcia, 280 Carlópolis, 86420-000", lat: -23.4323191902365, lng: -49.70499327623303, coletada: false },
+  { id: 108, nome: "R. Maria Keder Soares, 250 Carlópolis 86420-000", lat: -23.432998219213932, lng: -49.70511349157836, coletada: false },
+  //{ id: 109, nome: "R. Maria Keder Soares, 250 Carlópolis 86420-000", lat: -23.428500, lng: -49.719800, coletada: false },
+  { id: 110, nome: "R. Maria Keder Soares, 300 Carlópolis 86420-000", lat: -23.432845787096646, lng: -49.704584191578434, coletada: false },
+  { id: 111, nome: "R. Maria Keder Soares, 320 Carlópolis 86420-000", lat: -23.43280141110481, lng: -49.70440027623299, coletada: false },
+  { id: 112, nome: "R. Dr. Alberto Merhi Mansur, 201 Carlópolis, 86420-000", lat: -23.43306926758204, lng: -49.70518060506941, coletada: false },
+  { id: 113, nome: "R. Dr. Alberto Merhi Mansur, 110 Carlópolis, 86420-000", lat: -23.433274911880115, lng: -49.704954449251055, coletada: false },
+  { id: 114, nome: "R. Dr. Alberto Merhi Mansur, 50 Carlópolis, 86420-000", lat:-23.43355380018958, lng: -49.705628005069286, coletada: false },
+  { id: 115, nome: "R. Noemia Antonia Machado Varasquim, 40 Carlópolis, 86420-000", lat: -23.433591348874632, lng: -49.704958005069386, coletada: false },
+  { id: 116, nome: "R. Ipe Amarelo, 10 Carlópolis 86420-000", lat: -23.426783, lng: -49.708344, coletada: false },
+  { id: 117, nome: "R. Evaristo Sanches Garcia, 21 Carlópolis, 86420-000", lat: -23.43230812226174, lng: -49.707886420414646, coletada: false },
+  { id: 118, nome: "R. Benjamin Silva, 100 Carlópolis 86420-000", lat: -23.43204478602363, lng: -49.70712346274211, coletada: false },
+  { id: 119, nome: "R. Benjamin Silva, 90 Carlópolis 86420-000", lat: -23.43200240979644, lng: -49.70720846274207, coletada: false },
+  { id: 120, nome: "R. Ipê Roxo, 473 Carlópolis 86420-000", lat: -23.427475657433472, lng: -49.71195104739685, coletada: false },
+  { id: 121, nome: "R. Ipê Roxo, 473 Carlópolis 86420-000", lat: -23.429781, lng: -49.712118, coletada: false },
+  { id: 122, nome: "R. Rosseto, 250 Carlópolis 86420-000", lat: -23.426649167715524, lng: -49.71209286274228, coletada: false },
+  { id: 123, nome: "R. Rosseto, 281 Carlópolis 86420-000", lat: -23.426854712520502, lng: -49.711830191578656, coletada: false },
+  { id: 124, nome: "R. Rosseto, 360 Carlópolis 86420-000", lat: -23.42683947905096, lng:  -49.71098736274235, coletada: false },
+  { id: 125, nome: "R. Rosseto, 391 Carlópolis 86420-000", lat: -23.427093157034992, lng: -49.71063300506961, coletada: false },
+  { id: 126, nome: "R. Rosseto, 461 Carlópolis 86420-000", lat: -23.427178101897344, lng:  -49.709956233905736, coletada: false },
+  { id: 127, nome: "R. João Mariano da Silva Filho, 70 Carlópolis, 86420-000", lat: -23.426007444468617, lng: -49.71200486274242, coletada: false },
+  { id: 128, nome: "R. João Mariano da Silva Filho, 41 Carlópolis, PR", lat: -23.4255947102701, lng: -49.71194192041507, coletada: false },
+  { id: 129, nome: "R. Ana Camilo de Souza Camargo, 61 Carlópolis, PR", lat: -23.42521593232761, lng: -49.71055400506966, coletada: false },
+  //{ id: 130, nome: "R. Ana Camilo de Souza Camargo, 61 Carlópolis, PR", lat: -23.428500, lng: -49.719800, coletada: false },
+  //{ id: 131, nome: "R. Ana Camilo de Souza Camargo, 61 Carlópolis, PR", lat: -23.428500, lng: -49.719800, coletada: false },
+  { id: 132, nome: "R. Joel Ben-Hur de Oliveira, 50 Carlópolis, PR", lat: -23.42490524274628, lng: -49.710191191578794, coletada: false },
+  //{ id: 133, nome: "R. Joel Ben-Hur de Oliveira, 50 Carlópolis, PR", lat: -23.428500, lng: -49.719800, coletada: false },
+  { id: 134, nome: "R. Renato Pereira, 20 Carlópolis, 86420-000", lat: -23.42510348663529, lng: -49.709073733906145, coletada: false },
+  { id: 135, nome: "Av. Murador, 20 Carlópolis 86420-000", lat:-23.425012142913253, lng: -49.70884330506972, coletada: false },
+  { id: 136, nome: "R. Renato Pereira, 999 Carlópolis 86420-000", lat: -23.42397976274938, lng: -49.70875890506985, coletada: false },
+  //{ id: 137, nome: "R. Renato Pereira, 999 Carlópolis 86420-000", lat: -23.428500, lng: -49.719800, coletada: false },
+  { id: 138, nome: "R. Dr. Rogerio Ignacio da Silva, 170 Carlópolis, 86420-000", lat: -23.42358139600925, lng: -49.708972733906116, coletada: false },
+  { id: 139, nome: "R. José Ribamar de Oliveira, 548 Carlópolis, 86420-000", lat: -23.422818, lng: -49.707516, coletada: false },
+  { id: 140, nome: "R. Leônidas da Silva, 545 Carlópolis, 86420-000", lat: -23.422947494971652, lng: -49.70764062041517, coletada: false },
+  { id: 141, nome: "R. Manuel Francisco dos Santos, 700 Carlópolis, 86420-000", lat:-23.421957548562588, lng: -49.70632346274251, coletada: false },
+  { id: 142, nome: "R. João Carlos da Silva, 608 Carlópolis, 86420-000", lat: -23.42132563715326, lng: -49.707010362742466, coletada: false },
+  //{ id: 143, nome: "R. João Carlos da Silva, 608 Carlópolis, 86420-000", lat: -23.420882, lng: -49.708221, coletada: false },
+  { id: 144, nome: "R. João Carlos da Silva, 598 Carlópolis, 86420-000", lat: -23.420882, lng: -49.708221, coletada: false },
+  { id: 145, nome: "R. Manuel Francisco dos Santos, 513 Carlópolis, 86420-000", lat: -23.421365, lng: -49.708423, coletada: false },
+  { id: 146, nome: "PR-218, 2814 Carlópolis, 86420-000", lat: -23.421230081848172, lng: -49.7054111915788, coletada: false },
+  { id: 147, nome: "R. Benedito Salles, 2671 Carlópolis, 86420-000", lat: -23.419421579157326, lng: -49.708872291579, coletada: false },
+  { id: 148, nome: "R. Benedito Salles, 2639 Carlópolis, 86420-000", lat: -23.419471344308214, lng: -49.70899124925173, coletada: false },
+  { id: 149, nome: "PR-218, 2817 Carlópolis, 86420-000", lat: -23.420030480063254, lng: -49.70737626274253, coletada: false },
+  { id: 150, nome: "R. Benedito Salles, 2671 Carlópolis, 86420-000", lat: -23.419352664182536, lng: -49.70880791856091, coletada: false },
+  { id: 151, nome: "PR-218, 130 Carlópolis, 86420-000", lat: -23.419089443654716, lng: -49.70876181856088, coletada: false },
+  //{ id: 152, nome: "PR-218, 130 Carlópolis, 86420-000", lat: -23.433345, lng: -49.725249, coletada: false },
+  { id: 153, nome: "PR-218, 2539 Carlópolis, 86420-000", lat: -23.428127, lng: -49.679768, coletada: false },
+  { id: 154, nome: "R. Benedito Salles, 2539 Carlópolis, 86420-000", lat: -23.418937808359576, lng: -49.71018406274272, coletada: false },
+  { id: 155, nome: "R. Benedito Salles, 1557 Carlópolis, 86420-000", lat: -23.421508682262694, lng: -49.714960591579, coletada: false },
+  { id: 156, nome: "Rod. Jayme Canet, 1488 Carlópolis, 86420-000", lat: -23.42199449341164, lng: -49.71513663390619, coletada: false },
+  { id: 157, nome: "R. Benedito Salles, 1426 Carlópolis, 86420-000", lat: -23.422419915095674, lng: -49.715550933906115, coletada: false },
+  { id: 158, nome: "Rod. Jayme Canet, 1419 Carlópolis, 86420-000", lat: -23.422286449125437, lng: -49.715753276233556, coletada: false },
+  { id: 159, nome: "R. Jorge Barros, 1575 Carlópolis, 86420-000", lat: -23.422276549108503, lng: -49.716830191578964, coletada: false },
+  //{ id: 160, nome: "R. Jorge Barros, 1575 Carlópolis, 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
+  { id: 161, nome: "R. Delﬁno Mendes, 10 Carlópolis 86420-000", lat: -23.422949339690188, lng: -49.716655476233456, coletada: false },
+  { id: 162, nome: "R. Delﬁno Mendes, 217 Carlópolis 86420-000", lat: -23.422886, lng: -49.717187, coletada: false },
+  { id: 163, nome: "R. Jorge Barros, 1175 Carlópolis 86420-000", lat: -23.422552418057535, lng: -49.71707058972435, coletada: false },
+  { id: 164, nome: "R. Jorge Barros, 1625 Carlópolis 86420-000", lat: -23.421738048186928, lng: -49.716530620415234, coletada: false },
+  { id: 165, nome: "R. Jorge Barros, 1704 Carlópolis 86420-000", lat: -23.421822882730137, lng: -49.7161651069242, coletada: false },
+  { id: 166, nome: "Av. Elson Soares, 1537 Carlópolis 86420-000", lat: -23.420936457088228, lng: -49.71718544739718, coletada: false },
+  { id: 167, nome: "Av. Elson Soares, 1513 Carlópolis 86420-000", lat: -23.4211096471116, lng: -49.717500976233495, coletada: false },
+  { id: 168, nome: "R. Salvira Marquês, 445 Carlópolis 86420-000", lat: -23.420444535776603, lng: -49.717388820415344, coletada: false },
+  { id: 169, nome: "R. Salvira Marquês, 453 Carlópolis 86420-000", lat: -23.420450925591798, lng: -49.717461805069924, coletada: false },
+  { id: 170, nome: "R. Salvira Marquês, 551 Carlópolis 86420-000", lat: -23.420938, lng: -49.716681, coletada: false },
+  { id: 171, nome: "Av. Turística, 582 Carlópolis 86420-000", lat: -23.420191380302715, lng: -49.71810097623356, coletada: false },
+  { id: 172, nome: "R. Francisco Avelino Paiva, 816 Carlópolis, 86420-000", lat: -23.421015002091607, lng: -49.71808299157895, coletada: false },
+  { id: 173, nome: "Av. Elson Soares, 1501 Carlópolis 86420-000", lat: -23.421426013172862, lng: -49.71769119157886, coletada: false },
+  { id: 174, nome: "Av. Turística, 610 Centro 86420-000", lat: -23.420218290504412, lng: -49.71894073390615, coletada: false },
+  { id: 175, nome: "Av. Turística, 645 Carlópolis 86420-000", lat: -23.421193, lng: -49.719944, coletada: false },
+  { id: 176, nome: "R. Fidêncio de Melo, 573 Carlópolis 86420-000", lat: -23.42182832753877, lng: -49.720122889724486, coletada: false },
+  { id: 177, nome: "R. Yoneo Yoshitani, 437 Carlópolis 86420-000", lat: -23.421778548256217, lng: -49.720851505069845, coletada: false },
+  { id: 178, nome: "R. Yoneo Yoshitani, 458 Carlópolis 86420-000", lat: -23.421509592617912, lng: -49.72100699157881, coletada: false },
+  { id: 179, nome: "R. Edwirges Benedito do Amaral, 1811 Carlópolis, 86420-000", lat: -23.419767869580827, lng: -49.72609669157897, coletada: false },
+  { id: 180, nome: "R. Eugênio Neves Soares, 1767 Carlópolis 86420-000", lat: -23.421074, lng: -49.725479, coletada: false },
+  { id: 181, nome: "R. Yoneo Yoshitani, 314 Carlópolis 86420-000", lat: -23.422840660630346, lng: -49.72263383390612, coletada: false },
+  { id: 182, nome: "R. Yoneo Yoshitani, 278 Carlópolis 86420-000", lat: -23.42321989541749, lng: -49.723012762742485, coletada: false },
+  { id: 183, nome: "R. Antônio Jonas Ferreira Pinto, 715 Carlópolis, 86420-000", lat: -23.42227480434119, lng: -49.721123433906264, coletada: false },
+  { id: 184, nome: "R. Antônio Jonas Ferreira Pinto, 681 Carlópolis, 86420-000", lat: -23.42234494922551, lng: -49.72094390506988, coletada: false },
+  { id: 185, nome: "R. Francisco Avelino Paiva, 575 Carlópolis, 86420-000", lat: -23.42223960427842, lng: -49.71953524925154, coletada: false },
+  { id: 186, nome: "R. Fidêncio de Melo, 408 Carlópolis 86420-000", lat: -23.42238615978488, lng: -49.718905649251525, coletada: false },
+  { id: 187, nome: "R. Fidêncio de Melo, 369 Carlópolis 86420-000", lat: -23.423006084490833, lng: -49.71850937808783, coletada: false },
+  { id: 188, nome: "R. Fidêncio de Melo, 332 Carlópolis 86420-000", lat: -23.423000495058268, lng: -49.718100876233464, coletada: false },
+  { id: 189, nome: "R. Fidêncio de Melo, 302 Carlópolis 86420-000", lat: -23.4233260402787, lng: -49.717778262742534, coletada: false },
+  { id: 190, nome: "R. Jorge Barros, 1490 Carlópolis 86420-000", lat: -23.4234304851223, lng: -49.717619791578855, coletada: false },
+  { id: 191, nome: "R. Jorge Barros, 1516 Carlópolis 86420-000", lat: -23.423102395225108, lng: -49.71738073390618, coletada: false },
+  { id: 192, nome: "R. Fidêncio de Melo, 239 Carlópolis 86420-000", lat: -23.42387668578627, lng: -49.71743992041521, coletada: false },
+  { id: 193, nome: "R. Jorge Barros, 1398 Carlópolis 86420-000", lat: -23.423979685939635, lng: -49.718050776233426, coletada: false },
+  { id: 194, nome: "R. Antônio Jonas Ferreira Pinto, 346 Carlópolis, 86420-000", lat: -23.42408165219767, lng: -49.7182704204151, coletada: false },
+  { id: 195, nome: "R. Antônio Jonas Ferreira Pinto, 310 Carlópolis, 86420-000", lat: -23.424330797236056, lng: -49.71787850506967, coletada: false },
+  { id: 196, nome: "R. Benedito Salles, 1098 centro 86420-000", lat: -23.424703242430684, lng: -49.71775366274238, coletada: false },
+  { id: 197, nome: "R. Benedito Salles, 1132 Centro 86420-000", lat: -23.424514108340244, lng: -49.71741450506982, coletada: false },
+  { id: 198, nome: "PR-218, 1077 Carlópolis 86420-000", lat: -23.424751619606784, lng: -49.71785966274239, coletada: false },
+  { id: 199, nome: "R. Jorge Barros, 1344 Carlópolis 86420-000", lat: -23.42439554194988, lng: -49.718578920415204, coletada: false },
+  { id: 200, nome: "R. Jorge Barros, 1333 Carlópolis 86420-000", lat: -23.42426294174266, lng: -49.7187911915788, coletada: false },
+  { id: 201, nome: "R. Jorge Barros, 1345 Carlópolis 86420-000", lat: -23.424169252347554, lng: -49.71871579157885, coletada: false },
+  { id: 202, nome: "R. Antônio Jonas Ferreira Pinto, 372 Carlópolis, 86420-000", lat: -23.424114241510292, lng: -49.718458462742475, coletada: false },
+  { id: 203, nome: "R. Antônio Jonas Ferreira Pinto, 398 Carlópolis, 86420-000", lat: -23.423717030208575, lng: -49.71874539157879, coletada: false },
+  { id: 204, nome: "R. Antônio Jonas Ferreira Pinto, 434 Carlópolis, 86420-000", lat: -23.423547540624742, lng: -49.71888680506985, coletada: false },
+  { id: 205, nome: "R. Antônio Jonas Ferreira Pinto, 431 Carlópolis, 86420-000", lat: -23.42378223913631, lng: -49.719088791578876, coletada: false },
+  { id: 206, nome: "Av. Elson Soares, 1210 Carlópolis 86420-000", lat: -23.423347129685702, lng: -49.718800491578904, coletada: false },
+  { id: 207, nome: "Av. Elson Soares, 1217 Carlópolis 86420-000", lat: -23.423065884579827, lng: -49.71910496274261, coletada: false },
+  { id: 208, nome: "Av. Elson Soares, 1122 Carlópolis 86420-000", lat: -23.424027862838763, lng: -49.719645191578685, coletada: false },
+  { id: 209, nome: "Av. Elson Soares, 1078 Carlópolis 86420-000", lat: -23.42446513126614, lng: -49.7198115339061, coletada: false },
+  { id: 210, nome: "Av. Elson Soares, 1048 Centro 86420-000", lat: -23.424745820831653, lng: -49.71999950692413, coletada: false },
+  //{ id: 211, nome: "Av. Elson Soares, 1048 Centro 86420-000", lat: -23.425421, lng: -49.720729, coletada: false },
+  { id: 212, nome: "Av. Elson Soares, 1022 Carlópolis 86420-000", lat: -23.424838042641355, lng: -49.72021063390616, coletada: false },
+  { id: 213, nome: "R. Francisco Avelino Paiva, 322 Carlópolis 86420-000", lat: -23.42403404138496, lng: -49.72078741856073, coletada: false },
+  { id: 214, nome: "R. Francisco Avelino Paiva, 276 Carlópolis 86420-000", lat: -23.424699597839716, lng: -49.72124511856064, coletada: false },
+  { id: 215, nome: "R. Jorge Barros, 1149 Carlópolis 86420-000", lat: -23.425621888383496, lng: -49.7198864204151, coletada: false },
+  { id: 216, nome: "R. Dra. Paula e Silva, 658 Centro 86420-000", lat: -23.426274800418387, lng: -49.720095291578794, coletada: false },
+  { id: 217, nome: "R. Jorge Barros, 1029 Carlópolis 86420-000", lat: -23.42644555624351, lng: -49.7205271915787, coletada: false },
+  { id: 218, nome: "R. Dra. Paula e Silva, 665 Carlópolis 86420-000", lat: -23.426572878693925, lng: -49.720283733906044, coletada: false },
+  //{ id: 219, nome: "R. Dra. Paula e Silva, 625 Carlópolis 86420-000", lat: -23.426500, lng: -49.720329, coletada: false },
+  { id: 220, nome: "R. Dra. Paula e Silva, 761 Carlópolis 86420-000", lat: -23.42576771057908, lng: -49.72083681856061, coletada: false },
+  { id: 221, nome: "R. Laurindo Franco de Godói, 578 Carlópolis, 86420-000", lat: -23.426371133960696, lng: -49.721519133906035, coletada: false },
+  { id: 222, nome: "Av. Elson Soares, 767 Carlópolis 86420-000", lat: -23.426522556375403, lng: -49.72236844925146, coletada: false },
+  //{ id: 223, nome: "Av. Elson Soares, 767 Carlópolis 86420-000", lat: -23.425421, lng: -49.720729, coletada: false },
+  { id: 224, nome: "Av. Elson Soares, 760 Avenida 86420-000", lat: -23.426778201242616, lng: -49.721858805069544, coletada: false },
+  { id: 225, nome: "R. Laurindo Franco de Godói, 579 Carlópolis 86420-000", lat: -23.426552011979886, lng: -49.72184163576041, coletada: false },
+  { id: 226, nome: "R. Laurindo Franco de Godói, 567 Carlópolis 86420-000", lat: -23.42665410103947, lng: -49.72169156274228, coletada: false },
+  { id: 227, nome: "R. Laurindo Franco de Godói, 545 Carlópolis 86420-000", lat: -23.42681109015321, lng: -49.72155226274227, coletada: false },
+  { id: 228, nome: "R. Jorge Barros, 987 Carlópolis 86420-000", lat: -23.42677495680742, lng: -49.72109962041513, coletada: false },
+  { id: 229, nome: "R. Laurindo Franco de Godói, 464 Carlópolis 86420-000", lat: -23.42725752400861, lng: -49.72041264739694, coletada: false },
+  { id: 230, nome: "R. Laurindo Franco de Godói, 451 Carlópolis 86420-000", lat: -23.42734803534192, lng: -49.72084591856062, coletada: false },
+  //{ id: 231, nome: "R. Laurindo Franco de Godói, 451 Carlópolis, 86420-000", lat: -23.428100, lng: -49.719100, coletada: false },
+  //{ id: 232, nome: "R. Laurindo Franco de Godói, 464 Carlópolis, 86420-000", lat: -23.428100, lng: -49.719100, coletada: false },
+  { id: 233, nome: "R. Laurindo Franco de Godói, 787 Carlópolis, 86420-000", lat: -23.42591929983645, lng: -49.72181812041509, coletada: false },
+  { id: 234, nome: "R. Laurindo Franco de Godói, 429 Carlópolis, 86420-000", lat: -23.427384724169638, lng: -49.720750791578645, coletada: false },
+  { id: 235, nome: "R. Laurindo Franco de Godói, 425 Centro 86420-000", lat: -23.42745350234817, lng: -49.72060410506967, coletada: false },
+  { id: 236, nome: "R. Laurindo Franco de Godói, 415 Carlópolis 86420-000", lat: -23.42750704681207, lng: -49.72041990506963, coletada: false },
+  { id: 237, nome: "R. Benedito Salles, 659 Centro 86420-000", lat: -23.427642291390367, lng: -49.72043844925131, coletada: false },
+  { id: 238, nome: "R. Kalil Keder, 306 Carlópolis 86420-000", lat: -23.428331637912375, lng: -49.72083807623318, coletada: false },
+  { id: 239, nome: "R. Kalil Keder, 463 Carlópolis 86420-000", lat: -23.428042947649573, lng: -49.72137856274227, coletada: false },
+  //{ id: 240, nome: "R. Kalil Keder, 463 Carlópolis 86420-000", lat: -23.426849, lng: -49.722942, coletada: false },
+  { id: 241, nome: "R. Kalil Keder, 483 Carlópolis 86420-000", lat: -23.42785241430242, lng: -49.72159870692392, coletada: false },
+  { id: 242, nome: "PR-151, 528 Carlópolis 86420-000", lat: -23.427480891150104, lng: -49.72175480506962, coletada: false },
+  { id: 243, nome: "R. Marcos Rodrigues do Amaral, 528 Carlópolis, 86420-000", lat: -23.430984575782215, lng: -49.71788659157841, coletada: false },
+  { id: 244, nome: "R. Kalil Keder, 558 Centro 86420-000", lat: -23.427228513188123, lng: -49.72211332041498, coletada: false },
+  { id: 245, nome: "R. Francisco Avelino Paiva, 50 Carlópolis, 86420-000", lat: -23.426265444871863, lng: -49.722869820415156, coletada: false },
+  { id: 246, nome: "Rua Laurindo Franco de Godói, 754 Centro, Carlópolis, 86420-054", lat: -23.425263276057304, lng: -49.7229214069241, coletada: false },
+  { id: 247, nome: "R. Joaquim do Carmo de Oliveira Viléla, 85 Carlópolis, 86420-000", lat: -23.425324998863545, lng: -49.72342718972437, coletada: false },
+  { id: 248, nome: "R. Laurindo Franco de Godói, 804 Carlópolis, 86420-000", lat: -23.42510367672619, lng: -49.72338673390621, coletada: false },
+  { id: 249, nome: "R. Benedita da Cruz Domingues, 51 Carlópolis, 86420-000", lat: -23.424003941337936, lng: -49.72388890506973, coletada: false },
+  { id: 250, nome: "R. Benedita da Cruz Domingues, 59 Carlópolis, 86420-000", lat: -23.42384423038838, lng: -49.724188035760626, coletada: false },
+  { id: 251, nome: "R. Dra. Paula e Silva, 1156 Carlópolis 86420-000", lat: -23.423693608829108, lng: -49.72402239157877, coletada: false },
+  { id: 252, nome: "R. Dra. Paula e Silva, 1143 Carlópolis 86420-000", lat: -23.423420040425604, lng: -49.72376203390619, coletada: false },
+  { id: 253, nome: "R. Benedita da Cruz Domingues, 209 Carlópolis, 86420-000", lat: -23.42326984019098, lng: -49.725269218560825, coletada: false },
+  { id: 254, nome: "R. Yasuta Ono, 2204 Carlópolis 86420-000", lat: -23.42487292099235, lng: -49.72713489157876, coletada: false },
+  { id: 255, nome: "R. Yasuta Ono, 2160 Carlópolis 86420-000", lat: -23.42442978660939, lng: -49.727085820415134, coletada: false },
+  { id: 256, nome: "Av. Jaboticabal, 2213 Carlópolis 86420-000", lat: -23.42520855412631, lng: -49.726602818560785, coletada: false },
+  { id: 257, nome: "R. Kalil Keder, 1145 Carlópolis 86420-000", lat: -23.425384065361886, lng: -49.72682063205174, coletada: false },
+  { id: 258, nome: "R. Prof. Alfredo Mansur, 321 Carlópolis 86420-000", lat: -23.42566048783744, lng: -49.72728637808775, coletada: false },
+  { id: 259, nome: "R. Prof. Alfredo Mansur, 388 Carlópolis 86420-000", lat: -23.426239711422127, lng: -49.72741627623331, coletada: false },
+  { id: 260, nome: "R. Kalil Keder, 900 Carlópolis 86420-000", lat: -23.42509993216352, lng: -49.72488177808787, coletada: false },
+  { id: 261, nome: "R. Marcos Rodrigues do Amaral, 752 Carlópolis, 86420-000", lat:-23.43155688537003, lng: -49.71783577808747, coletada: false },
+  { id: 262, nome: "PR-151, 752 Carlópolis 86420-000", lat: -23.426120567053584, lng: -49.723626678087676, coletada: false },
+  { id: 263, nome: "R. João Feres, 16 Carlópolis 86420-000", lat: -23.425917233318998, lng: -49.724626747396954, coletada: false },
+  { id: 264, nome: "R. João Feres, 265 Carlópolis 86420-000", lat: -23.42651410081021, lng: -49.725460149251376, coletada: false },
+  { id: 265, nome: "R. João Feres, 273 Carlópolis 86420-000", lat: -23.426568589792378, lng: -49.72552940506969, coletada: false },
+  { id: 266, nome: "R. João Antônio Ribeiro, 170 Carlópolis 86420-000", lat: -23.42786711432877, lng: -49.72657906274233, coletada: false },
+  //{ id: 26R. João Antônio Ribeiro, 170 Carlópolis 86420-0007, nome: "", lat: -23.428415, lng: -49.727248, coletada: false },
+  { id: 268, nome: "R. José Talim, 744 Carlópolis 86420-000", lat: -23.42782681425675, lng: -49.72446931856048, coletada: false },
+  { id: 269, nome: "R. José Talim, 768 Carlópolis 86420-000", lat: -23.427655558314612, lng: -49.724681733905946, coletada: false },
+  { id: 270, nome: "Av. Elson Soares, 489 Centro 86420-000", lat: -23.42918721668665, lng: -49.72411092041497, coletada: false },
+  { id: 271, nome: "R. Jorge Barros, 563 Carlópolis 86420-000", lat: -23.429811950414276, lng: -49.72365871856037, coletada: false },
+  { id: 272, nome: "R. Jorge Barros, 625 Carlópolis 86420-000", lat: -23.429285449591344, lng: -49.72333023390598, coletada: false },
+  { id: 273, nome: "R. Jorge Barros, 641 Carlópolis 86420-000", lat: -23.429232461013818, lng: -49.72318499157854, coletada: false },
+  { id: 274, nome: "R. Jorge Barros, 680 Carlópolis 86420-000", lat: -23.42912054933367, lng: -49.72269216274213, coletada: false },
+  { id: 275, nome: "R. Benedito Salles, 435 Carlópolis 86420-000", lat: -23.42952613842157,  lng:-49.722262576233156, coletada: false },
+  { id: 276, nome: "R. Benedito Salles, 1230 Carlópolis 86420-000", lat: -23.429691294440047, lng: -49.72201356274223, coletada: false },
+  { id: 277, nome: "Rod. Jayme Canet, 341 Carlópolis 86420-000", lat: -23.429997094895203, lng: -49.72243416088778, coletada: false },
+  { id: 278, nome: "R. Paraná, 349 Carlópolis 86420-000", lat: -23.429807296787956, lng: -49.72291097623312, coletada: false },
+  { id: 279, nome: "Rod. José Alves Pereira, 250 Carlópolis 86420-000", lat: -23.430605663364442, lng: -49.72286230506953, coletada: false },
+  { id: 280, nome: "R. José Aleixo Sobrinho, 336 Carlópolis 86420-000", lat: -23.430119, lng: -49.723632, coletada: false },
+  { id: 281, nome: "R. José Sales, 262 Carlópolis 86420-000", lat: -23.431577, lng: -49.720074, coletada: false },
+  { id: 282, nome: "Rod. José Alves Pereira, 233 Carlópolis 86420-000", lat: -23.43085547269077, lng: -49.72324011856041, coletada: false },
+  { id: 283, nome: "R. Aroldo José Barbosa, 361 Carlópolis 86420-000", lat: -23.430723351838765, lng: -49.72386579157857, coletada: false },
+  { id: 284, nome: "R. Jorge Barros, 547 Carlópolis 86420-000", lat: -23.430761596033186, lng: -49.724658305069404, coletada: false },
+  { id: 285, nome: "Rod. José Alves Pereira, 185 Carlópolis 86420-000", lat: -23.431117264240324, lng: -49.723572805069416, coletada: false },
+  { id: 286, nome: "R. Benedito Salles, 1508 Carlópolis 86420-000", lat: -23.4314320970312, lng: -49.72352091856043, coletada: false },
+  //{ id: 287, nome: "Rod. José Alves Pereira, 8-220 Carlópolis, 86420-000", lat: -23.431000, lng: -49.715000, coletada: false },
+  { id: 288, nome: "Rod. José Alves Pereira, 8-220 Carlópolis, 86420-000", lat: -23.431000, lng: -49.715000, coletada: false },
+  { id: 289, nome: "R. Gênova, 20 Carlópolis 86420-000", lat: -23.432232342248295, lng: -49.72374500506937, coletada: false },
+  { id: 290, nome: "PR-218, 57 Carlópolis 86420-000", lat: -23.433345, lng: -49.725249, coletada: false },
+  { id: 291, nome: "R. Benedito Salles, 10 Centro 86420-000", lat: -23.432409610463186, lng: -49.72427616088771, coletada: false },
+  { id: 292, nome: "R. Gênova, 20 Carlópolis 86420-000", lat: -23.433597, lng: -49.722345, coletada: false },
+  { id: 293, nome: "R. Benedito Salles, 10 Centro 86420-000", lat: -23.428500, lng: -49.719800, coletada: false },
+  { id: 294, nome: "R. Benedito Salles, 27 Carlópolis 86420-000", lat: -23.428500, lng: -49.719800, coletada: false },
+  { id: 295, nome: "R. Aroldo José Barbosa, 324 Carlópolis 86420-000", lat: -23.43170659743984, lng: -49.72250243390577, coletada: false },
+  { id: 296, nome: "R. José Talim, 350 Carlópolis 86420-000", lat: -23.42985930628718, lng: -49.72137338972421, coletada: false },
+  { id: 297, nome: "R. José Talim, 751 Carlópolis 86420-000", lat: -23.427858224768475, lng: -49.724494460887875, coletada: false },
+  { id: 298, nome: "R. André Jorge Cleli, 201 Centro 86420-000", lat: -23.429554, lng: -49.720701, coletada: false },
+  { id: 299, nome: "R. Jorge Barros, 903 Carlópolis 86420-000", lat: -23.425692, lng: -49.719639, coletada: false },
+  { id: 300, nome: "R. Benedito Salles, 462 Centro 86420-000", lat: -23.429323038134445, lng: -49.72160131856051, coletada: false },
+  { id: 301, nome: "Rod. Jayme Canet, 467 Carlópolis 86420-000", lat: -23.428948416260166, lng: -49.72165299157857, coletada: false },
+  { id: 302, nome: "R. Benedito Salles, 1124 Carlópolis 86420-000", lat: -23.42898034911462, lng: -49.72134886274213, coletada: false },
+  { id: 303, nome: "R. Benedito Salles, 539 Carlópolis 86420-000", lat: -23.42862645997653, lng: -49.72127428972409, coletada: false },
+  { id: 304, nome: "R. Benedito Salles, 560 Carlópolis 86420-000", lat: -23.428575159888656, lng: -49.72104196274225, coletada: false },
+  { id: 305, nome: "R. Benedito Salles, 565 Carlópolis 86420-000", lat: -23.428342115177173, lng: -49.72112351856052, coletada: false },
+  { id: 306, nome: "306 R. Dra. Paula e Silva, 958 Carlópolis 86420-000", lat: -23.426500, lng: -49.720329, coletada: false },
+  { id: 307, nome: "307 R. Ataliba Leonel, 445 Carlópolis 86420-000", lat: -23.4268482073578, lng: -49.71953369901676, coletada: false },
+  { id: 308, nome: "R. Benedito Salles, 903 Carlópolis 86420-000", lat: -23.42601664448305, lng: -49.71903320506956, coletada: false },
+  { id: 309, nome: "309 R. Nicolau Miguel, 400 Carlópolis 86420-000", lat: -23.425687, lng: -49.719818, coletada: false },
+  { id: 310, nome: "R. Benedito Salles, 918 Centro 86420-000", lat: -23.42598816648576, lng: -49.71875543390601, coletada: false },
+  { id: 311, nome: "R. Benedito Salles, 1030 Carlópolis 86420-000", lat: -23.42531682070039, lng: -49.71796070506971, coletada: false },
+  { id: 312, nome: "R. Benedito Salles, 1340 Centro 86420-000", lat: -23.423114584652275, lng: -49.715986562742366, coletada: false },
+  { id: 313, nome: "R. João Gervásio, 124 Carlópolis 86420-000", lat: -23.42323801667837, lng: -49.714310276233526, coletada: false },
+  { id: 314, nome: "R. João Gervásio, 254 Carlópolis 86420-000", lat: -23.421688448102078, lng: -49.716904733906276, coletada: false },
+  //{ id: 315, nome: "R. João Gervásio, 254 Carlópolis 86420-000", lat: -23.422778, lng: -49.712417, coletada: false },
+  { id: 316, nome: "R. Francisco Avelino Paiva, 655, Carlópolis 86420-000", lat: -23.421906648475442, lng: -49.71919316088812, coletada: false },
+];
+const enderecos = [
+  
+
         ];
 
-        // 3. Desenha os pontos no mapa e cria a linha da rota na ordem sequencial
-        let coordenadasRota = [];
-        
-        enderecosRonda.forEach((ponto, indice) => {
-            let iconePersonalizado;
+        // VARIÁVEIS DE ESTADO
+        let pontosTratadosGlobal = [];
+        let marcadoresCamadas = [];
+        let linhaPolyline = null;
+        let marcadorTempClique = null;
+        let emNavegacao = false;
+        let pontoAtualIndex = 0;
+        let meuMarcador = null;
+        let latGuarda = null, lngGuarda = null;
 
-            // Se for o primeiro ponto (ou ID 1), criamos a bandeira de início verde
-            if (indice === 0 || ponto.id === 1) {
-                iconePersonalizado = L.divIcon({
+        // EVEN TO DE CLIQUE NO MAPA PARA CAPTURAR COORDENADAS
+        map.on('click', function(e) {
+            const lat = e.latlng.lat;
+            const lng = e.latlng.lng;
+
+            document.getElementById('novo-lat').value = lat.toFixed(6);
+            document.getElementById('novo-lng').value = lng.toFixed(6);
+
+            // Marca temporária onde clicou
+            if (marcadorTempClique) map.removeLayer(marcadorTempClique);
+            marcadorTempClique = L.marker([lat, lng], {
+                icon: L.divIcon({
                     className: 'custom-div-icon',
-                    html: `<div class="marcador-inicio" title="Início da Ronda">🏁</div>`,
-                    iconSize: [28, 28],
-                    iconAnchor: [14, 14]
-                });
-            } else {
-                // Para os demais pontos, exibe um círculo azul contendo o ID exato do endereço
-                iconePersonalizado = L.divIcon({
-                    className: 'custom-div-icon',
-                    html: `<div class="marcador-numero">${ponto.id}</div>`,
-                    iconSize: [24, 24],
-                    iconAnchor: [12, 12]
-                });
-            }
-
-            // Adiciona o marcador customizado no mapa
-            L.marker([ponto.lat, ponto.lng], { icon: iconePersonalizado })
-                .addTo(map)
-                .bindPopup(`<b>Parada ${ponto.id}</b><br>${ponto.nome}`);
-
-            // Salva a coordenada para traçar a linha da rota
-            coordenadasRota.push([ponto.lat, ponto.lng]);
+                    html: '<div style="background:red; color:white; border-radius:50%; width:16px; height:16px; text-align:center; font-size:10px; line-height:16px; border:2px solid white;">📍</div>',
+                    iconSize: [16, 16]
+                })
+            }).addTo(map);
         });
 
-        // Traça uma linha azul tracejada conectando os pontos da ronda na ordem da lista
-        if (coordenadasRota.length > 0) {
-            L.polyline(coordenadasRota, {
-                color: 'blue',
-                weight: 4,
-                opacity: 0.6,
-                dashArray: '10, 10'
-            }).addTo(map);
+        // API OSRM NEAREST (Ajuste para a via mais próxima)
+        async function snapToRoad(lat, lng) {
+            if (!lat || !lng || isNaN(lat) || isNaN(lng)) return { lat, lng };
+            try {
+                const url = `https://router.project-osrm.org/nearest/v1/driving/${lng},${lat}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                if (data.code === 'Ok' && data.waypoints && data.waypoints.length > 0) {
+                    const [snappedLng, snappedLat] = data.waypoints[0].location;
+                    return { lat: snappedLat, lng: snappedLng };
+                }
+            } catch (error) {
+                console.warn("Falha no OSRM. Mantendo ponto original:", error);
+            }
+            return { lat, lng };
         }
 
-        // 4. Gerencia a localização em tempo real do próprio celular do guarda
-        let meuMarcador = null;
-        let primeiraVez = true;
+        // PROCESSAR E ADICIONAR NOVO PONTO
+        async function processarEAdicionarPonto() {
+            const idVal = document.getElementById('novo-id').value.trim();
+            const nomeVal = document.getElementById('novo-nome').value.trim();
+            const buscaVal = document.getElementById('novo-busca').value.trim();
+            const latVal = document.getElementById('novo-lat').value.trim();
+            const lngVal = document.getElementById('novo-lng').value.trim();
 
+            if (!idVal) {
+                alert("Por favor, informe o Número do Índice (Nº ID).");
+                return;
+            }
+
+            const novoId = parseInt(idVal, 10);
+            let finalLat = null;
+            let finalLng = null;
+            const statusElem = document.getElementById('status-texto');
+
+            // Opção A: Já digitou ou clicou no mapa para obter Lat/Lng
+            if (latVal && lngVal && !isNaN(parseFloat(latVal)) && !isNaN(parseFloat(lngVal))) {
+                finalLat = parseFloat(latVal);
+                finalLng = parseFloat(lngVal);
+            } 
+            // Opção B: Tentar buscar por texto de endereço
+            else if (buscaVal !== "") {
+                statusElem.innerText = "🔍 Buscando endereço...";
+                try {
+                    const urlGeo = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(buscaVal + " Carlópolis BR")}`;
+                    const response = await fetch(urlGeo);
+                    const dataGeo = await response.json();
+
+                    if (dataGeo && dataGeo.length > 0) {
+                        finalLat = parseFloat(dataGeo[0].lat);
+                        finalLng = parseFloat(dataGeo[0].lon);
+                    } else {
+                        alert("Endereço não encontrado! Clique direto no local do mapa para definir a posição.");
+                        statusElem.innerText = "Pronto para navegar.";
+                        return;
+                    }
+                } catch (e) {
+                    alert("Erro ao buscar endereço na internet. Por favor, clique no mapa ou digite as Coordenadas.");
+                    statusElem.innerText = "Pronto para navegar.";
+                    return;
+                }
+            } else {
+                alert("Preencha o Endereço de Busca OU clique no mapa para capturar a Latitude/Longitude!");
+                return;
+            }
+
+            statusElem.innerText = "Ajustando ponto na pista...";
+            const coordAjustada = await snapToRoad(finalLat, finalLng);
+
+            const nomeFinal = nomeVal !== "" ? nomeVal : (buscaVal !== "" ? buscaVal : `Ponto ${novoId}`);
+
+            const novoPonto = {
+                id: novoId,
+                nome: nomeFinal,
+                lat: coordAjustada.lat,
+                lng: coordAjustada.lng,
+                coletada: false
+            };
+
+            // Remove da lista se já existir o mesmo ID para atualizar
+            pontosTratadosGlobal = pontosTratadosGlobal.filter(p => p.id !== novoId);
+            
+            // Adiciona e reordena
+            pontosTratadosGlobal.push(novoPonto);
+            pontosTratadosGlobal.sort((a, b) => a.id - b.id);
+
+            // Limpa ponteiro temporário
+            if (marcadorTempClique) {
+                map.removeLayer(marcadorTempClique);
+                marcadorTempClique = null;
+            }
+
+            // Limpa os campos
+            document.getElementById('novo-id').value = '';
+            document.getElementById('novo-nome').value = '';
+            document.getElementById('novo-busca').value = '';
+            document.getElementById('novo-lat').value = '';
+            document.getElementById('novo-lng').value = '';
+
+            renderizarMapa();
+            map.setView([coordAjustada.lat, coordAjustada.lng], 17);
+            statusElem.innerText = `✅ Ponto ${novoId} adicionado com sucesso!`;
+            alert(`Ponto ${novoId} adicionado com sucesso na rota!`);
+        }
+
+        // COPIAR CÓDIGO JS ATUALIZADO
+        function abrirModalCodigo() {
+            const jsonText = JSON.stringify(pontosTratadosGlobal, null, 4);
+            // Formata bonito no padrão de arrays de objetos em JS
+            const jsFormatted = "const enderecosRonda = " + jsonText.replace(/"([^"]+)":/g, '$1:') + ";";
+            document.getElementById('textarea-codigo').value = jsFormatted;
+            document.getElementById('modal-codigo').style.display = 'flex';
+        }
+
+        function fecharModalCodigo() {
+            document.getElementById('modal-codigo').style.display = 'none';
+        }
+
+        function copiarTextoCodigo() {
+            const copyText = document.getElementById("textarea-codigo");
+            copyText.select();
+            document.execCommand("copy");
+            alert("Código copiado para a área de transferência! Cole no seu arquivo .html.");
+        }
+
+        // CARREGA E AJUSTA OS PONTOS INICIAIS
+        async function inicializarRota() {
+            pontosTratadosGlobal = await Promise.all(
+                enderecosRonda.map(async (ponto) => {
+                    const coordAjustada = await snapToRoad(ponto.lat, ponto.lng);
+                    return { ...ponto, lat: coordAjustada.lat, lng: coordAjustada.lng };
+                })
+            );
+
+            pontosTratadosGlobal.sort((a, b) => a.id - b.id);
+
+            renderizarMapa();
+            document.getElementById('status-texto').innerText = "Ronda pronta! Clique em Iniciar Ronda.";
+            document.getElementById('botoes-painel').innerHTML = `
+                <button class="btn-acao btn-secundario" onclick="iniciarRonda()">🚀 Iniciar Ronda</button>
+                <button class="btn-acao" onclick="centralizarMim()">Centralizar em Mim</button>
+            `;
+        }
+
+        // DESENHA OS MARCADORES E LINHAS NO MAPA
+        function renderizarMapa() {
+            marcadoresCamadas.forEach(m => map.removeLayer(m));
+            marcadoresCamadas = [];
+            if (linhaPolyline) map.removeLayer(linhaPolyline);
+
+            let coordenadasLinha = [];
+
+            pontosTratadosGlobal.forEach((ponto, indice) => {
+                let iconeHtml = '';
+                let classeIcone = '';
+
+                if (emNavegacao && indice === pontoAtualIndex) {
+                    classeIcone = 'marcador-alvo';
+                    iconeHtml = `<div class="${classeIcone}">🎯</div>`;
+                } else if (ponto.coletada) {
+                    classeIcone = 'marcador-concluido';
+                    iconeHtml = `<div class="${classeIcone}">✔️</div>`;
+                } else if (indice === 0) {
+                    classeIcone = 'marcador-inicio';
+                    iconeHtml = `<div class="${classeIcone}">🏁</div>`;
+                } else {
+                    classeIcone = 'marcador-numero';
+                    iconeHtml = `<div class="${classeIcone}">${ponto.id}</div>`;
+                }
+
+                const icone = L.divIcon({
+                    className: 'custom-div-icon',
+                    html: iconeHtml,
+                    iconSize: [26, 26],
+                    iconAnchor: [13, 13]
+                });
+
+                const linkGoogle = `https://www.google.com/maps/dir/?api=1&destination=${ponto.lat},${ponto.lng}`;
+                const linkWaze = `https://waze.com/ul?ll=${ponto.lat},${ponto.lng}&navigate=yes`;
+
+                const popupHtml = `
+                    <b>Parada ${ponto.id}</b><br>${ponto.nome}<br>
+                    <div style="margin-top:6px;">
+                        <a href="${linkGoogle}" target="_blank" class="btn-gps-popup btn-gmaps">Google Maps</a>
+                        <a href="${linkWaze}" target="_blank" class="btn-gps-popup btn-waze">Waze</a>
+                    </div>
+                `;
+
+                const marker = L.marker([ponto.lat, ponto.lng], { icon: icone })
+                    .addTo(map)
+                    .bindPopup(popupHtml);
+
+                marcadoresCamadas.push(marker);
+                coordenadasLinha.push([ponto.lat, ponto.lng]);
+            });
+
+            if (coordenadasLinha.length > 0) {
+                linhaPolyline = L.polyline(coordenadasLinha, {
+                    color: 'blue', weight: 4, opacity: 0.6, dashArray: '8, 8'
+                }).addTo(map);
+            }
+        }
+
+        // CONTROLES DE NAVEGAÇÃO GUIADA
+        function iniciarRonda() {
+            emNavegacao = true;
+            pontoAtualIndex = pontosTratadosGlobal.findIndex(p => !p.coletada);
+            if (pontoAtualIndex === -1) pontoAtualIndex = 0;
+
+            atualizarEstadoNavegacao();
+        }
+
+        function concluirPontoAtual() {
+            tocarBeep();
+            pontosTratadosGlobal[pontoAtualIndex].coletada = true;
+            pontoAtualIndex++;
+
+            if (pontoAtualIndex >= pontosTratadosGlobal.length) {
+                emNavegacao = false;
+                renderizarMapa();
+                document.getElementById('status-texto').innerText = "🎉 Ronda Finalizada com Sucesso!";
+                document.getElementById('distancia-texto').innerText = "Todos os pontos foram visitados.";
+                document.getElementById('botoes-painel').innerHTML = `
+                    <button class="btn-acao btn-secundario" onclick="reiniciarRonda()">🔄 Reiniciar Ronda</button>
+                    <button class="btn-acao" onclick="centralizarMim()">Centralizar em Mim</button>
+                `;
+                return;
+            }
+
+            atualizarEstadoNavegacao();
+        }
+
+        function atualizarEstadoNavegacao() {
+            const pontoAtual = pontosTratadosGlobal[pontoAtualIndex];
+            renderizarMapa();
+
+            map.setView([pontoAtual.lat, pontoAtual.lng], 17);
+
+            document.getElementById('status-texto').innerText = `Parada ${pontoAtualIndex + 1} de ${pontosTratadosGlobal.length}: ${pontoAtual.nome}`;
+            
+            document.getElementById('botoes-painel').innerHTML = `
+                <button class="btn-acao" onclick="concluirPontoAtual()">✅ Cheguei / Próximo</button>
+                <button class="btn-acao btn-waze" onclick="abrirNavegadorExterno('waze')">Waze</button>
+                <button class="btn-acao btn-gmaps" onclick="abrirNavegadorExterno('google')">Maps</button>
+                <button class="btn-acao btn-perigo" onclick="encerrarRonda()">🛑 Encerrar</button>
+            `;
+
+            calcularDistanciaAtePontoAtual();
+        }
+
+        function encerrarRonda() {
+            emNavegacao = false;
+            renderizarMapa();
+            document.getElementById('status-texto').innerText = "Ronda pausada.";
+            document.getElementById('distancia-texto').innerText = "";
+            document.getElementById('botoes-painel').innerHTML = `
+                <button class="btn-acao btn-secundario" onclick="iniciarRonda()">▶️ Continuar Ronda</button>
+                <button class="btn-acao" onclick="centralizarMim()">Centralizar em Mim</button>
+            `;
+        }
+
+        function reiniciarRonda() {
+            pontosTratadosGlobal.forEach(p => p.coletada = false);
+            iniciarRonda();
+        }
+
+        function abrirNavegadorExterno(tipo) {
+            const ponto = pontosTratadosGlobal[pontoAtualIndex];
+            if (!ponto) return;
+            
+            let url = tipo === 'waze' 
+                ? `https://waze.com/ul?ll=${ponto.lat},${ponto.lng}&navigate=yes`
+                : `https://www.google.com/maps/dir/?api=1&destination=${ponto.lat},${ponto.lng}`;
+            
+            window.open(url, '_blank');
+        }
+
+        function tocarBeep() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.3);
+            } catch (e) { console.log("Áudio não permitido"); }
+        }
+
+        // GPS EM TEMPO REAL
         function aoMoverGPS(posicao) {
-            const lat = posicao.coords.latitude;
-            const lng = posicao.coords.longitude;
-
-            document.getElementById('status-texto').innerText = "GPS Ativo - Siga a linha azul da rota";
+            latGuarda = posicao.coords.latitude;
+            lngGuarda = posicao.coords.longitude;
 
             if (!meuMarcador) {
-                // Cria um marcador vermelho em destaque para o guarda saber onde ele está
-                meuMarcador = L.circleMarker([lat, lng], {
-                    radius: 9,
-                    color: '#fff',
-                    fillColor: '#dc3545', // Vermelho vivo
-                    fillOpacity: 1,
-                    weight: 2
+                meuMarcador = L.circleMarker([latGuarda, lngGuarda], {
+                    radius: 9, color: '#fff', fillColor: '#dc3545', fillOpacity: 1, weight: 2
                 }).addTo(map).bindPopup("<b>Você está aqui</b>");
+                map.setView([latGuarda, lngGuarda], 17);
             } else {
-                meuMarcador.setLatLng([lat, lng]);
+                meuMarcador.setLatLng([latGuarda, lngGuarda]);
             }
 
-            // Centraliza o mapa automaticamente na primeira leitura do GPS
-            if (primeiraVez) {
-                map.setView([lat, lng], 17);
-                primeiraVez = false;
+            if (emNavegacao) {
+                calcularDistanciaAtePontoAtual();
             }
         }
 
-        function erroGPS(erro) {
-            document.getElementById('status-texto').innerText = "Erro no GPS: Ative a localização do celular.";
+        function calcularDistanciaAtePontoAtual() {
+            if (latGuarda === null || lngGuarda === null || !emNavegacao) return;
+
+            const alvo = pontosTratadosGlobal[pontoAtualIndex];
+            const distMetros = Math.round(map.distance([latGuarda, lngGuarda], [alvo.lat, alvo.lng]));
+
+            document.getElementById('distancia-texto').innerText = `Distância até o ponto: ${distMetros} metros`;
+
+            if (distMetros <= 25) {
+                concluirPontoAtual();
+            }
+        }
+
+        function erroGPS() {
+            document.getElementById('status-texto').innerText = "Aviso: Sinal do GPS fraco ou inativo.";
         }
 
         function centralizarMim() {
@@ -468,16 +850,16 @@
             }
         }
 
-        // Ativa o sensor de GPS do celular do guarda
         if ("geolocation" in navigator) {
             navigator.geolocation.watchPosition(aoMoverGPS, erroGPS, {
                 enableHighAccuracy: true,
-                maximumAge: 5000,
-                timeout: 15000
+                maximumAge: 3000,
+                timeout: 10000
             });
-        } else {
-            alert("Suporte de geolocalização indisponível neste dispositivo.");
         }
+
+        // Inicializa a rota
+        inicializarRota();
     </script>
 </body>
 </html>
